@@ -159,7 +159,11 @@ def test_report_returns_audit_summary() -> None:
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["provider"] in {"local-ollama:qwen2.5-coder:7b", "securexai-local-report"}
+    assert payload["provider"] in {
+        "local-ollama:llama3:latest",
+        "local-ollama:qwen2.5-coder:7b",
+        "securexai-local-report",
+    }
     assert payload["recommended_actions"]
 
 

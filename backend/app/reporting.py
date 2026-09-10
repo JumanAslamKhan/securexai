@@ -32,7 +32,7 @@ def _fallback_report(analysis: AnalysisResponse) -> VulnerabilityReport:
 
 def generate_report(analysis: AnalysisResponse) -> VulnerabilityReport:
     base_url = os.getenv("OPENAI_BASE_URL", "http://127.0.0.1:11434/v1")
-    model = os.getenv("OPENAI_MODEL", "qwen2.5-coder:7b")
+    model = os.getenv("OPENAI_MODEL", "llama3:latest")
     api_key = os.getenv("OPENAI_API_KEY", "ollama")
     prompt = {
         "filename": analysis.filename,
@@ -49,9 +49,15 @@ def generate_report(analysis: AnalysisResponse) -> VulnerabilityReport:
             {
                 "role": "system",
                 "content": (
-                    "You are a smart-contract security auditor. Return only JSON with "
-                    "title, executive_summary, risk_summary, recommended_actions, and validation_note. "
-                    "Do not invent findings or claim fixes were validated."
+                    "You are a smart-contract security auditor. Return only one valid JSON object, "
+                    "with exactly these keys: title (string), executive_summary (string), "
+                    "risk_summary (object with integer keys critical, high, medium, low), "
+                    "recommended_actions (array of strings), and validation_note (string). "
+                    "Count risk_summary from the supplied findings. Use zero for missing severities. "
+                    "Do not use markdown, add extra keys, invent findings, or claim fixes were validated. "
+                    'Example: {"title":"Report","executive_summary":"Summary",'
+                    '"risk_summary":{"critical":0,"high":0,"medium":0,"low":0},'
+                    '"recommended_actions":["Review findings"],"validation_note":"Advisory only."}'
                 ),
             },
             {"role": "user", "content": json.dumps(prompt)},
