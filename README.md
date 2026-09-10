@@ -38,9 +38,10 @@ benchmark evaluation are planned next and should be reported as future results
 until they are measured.
 
 The analyzer request accepts `solidity`, `vyper`, `rust`, and `move`. Solidity
-currently has the complete custom detector, Semgrep rules, and Slither support.
-The other language options are routed safely and report unsupported analyzers as
-`skipped` until language-specific rules are implemented.
+uses the complete custom detector, Semgrep rules, and Slither support. Each
+other language enters its own backend pipeline and bypasses the Solidity
+detector and Slither entirely; those pipelines will receive language-specific
+rules independently.
 
 ## Research Positioning
 

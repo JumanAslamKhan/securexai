@@ -2,10 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from app.detector import analyze_source
-from app.analyzers import run_external_analyzers
-from app.normalizer import deduplicate_findings
 from app.models import AnalysisResponse, Language
+from app.pipelines import analyze_other_language, analyze_solidity
 
 app = FastAPI(
     title="SecureXAI API",
@@ -35,19 +33,18 @@ def health() -> dict[str, str]:
 
 @app.post("/api/v1/analyze", response_model=AnalysisResponse)
 def analyze_contract(request: AnalyzeRequest) -> AnalysisResponse:
-    findings = (
-        analyze_source(request.filename, request.source)
-        if request.language == "solidity"
-        else []
-    )
-    external_findings, tool_runs = run_external_analyzers(
-        request.filename, request.source, request.language
-    )
-    findings.extend(external_findings)
-    findings = deduplicate_findings(findings)
+    if request.language == "solidity":
+        findings, tool_runs, pipeline = analyze_solidity(
+            request.source, request.filename
+        )
+    else:
+        findings, tool_runs, pipeline = analyze_other_language(
+            request.source, request.filename, request.language
+        )
     return AnalysisResponse(
         filename=request.filename,
         language=request.language,
+        pipeline=pipeline,
         finding_count=len(findings),
         findings=findings,
         tool_runs=tool_runs,

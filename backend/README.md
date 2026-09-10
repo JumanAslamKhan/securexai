@@ -16,8 +16,9 @@ API documentation is available at `http://127.0.0.1:8000/docs`.
 
 SecureXAI runs the custom pattern detector, Semgrep, and Slither for Solidity
 analysis requests. The API also accepts Vyper, Rust, and Move source through a
-`language` field. Tools that do not support the selected language are reported
-as `skipped` rather than producing misleading results.
+`language` field. Those languages enter separate pipelines and never run the
+Solidity detector or Slither. The selected pipeline is returned in the API
+response.
 
 Activate it before starting the backend when possible:
 

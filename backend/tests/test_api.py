@@ -37,6 +37,7 @@ def test_analyze_returns_line_level_reentrancy_finding() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["finding_count"] >= 1
+    assert payload["pipeline"] == "solidity-security"
     assert any(finding["category"] == "reentrancy" for finding in payload["findings"])
     assert any(finding["line"] == 3 for finding in payload["findings"])
     reentrancy = next(
@@ -87,5 +88,7 @@ def test_rust_analysis_routes_unsupported_tools_honestly() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["language"] == "rust"
+    assert payload["pipeline"] == "rust-security"
     assert payload["finding_count"] == 0
-    assert {tool["status"] for tool in payload["tool_runs"]} == {"skipped"}
+    assert payload["tool_runs"][0]["tool"] == "language-specific-pipeline"
+    assert payload["tool_runs"][0]["status"] == "skipped"

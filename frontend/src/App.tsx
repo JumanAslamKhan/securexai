@@ -16,6 +16,8 @@ type Finding = {
 
 type AnalysisResult = {
   filename: string;
+  language: Language;
+  pipeline: `${Language}-security`;
   finding_count: number;
   findings: Finding[];
   tool_runs: ToolRun[];
@@ -140,6 +142,7 @@ function App() {
             <div>
               <p className="eyebrow">Analysis complete</p>
               <h2>{result.filename}</h2>
+              <p className="pipeline-label">Pipeline: {result.pipeline}</p>
             </div>
             <label>
               Filter severity

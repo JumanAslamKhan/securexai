@@ -5,6 +5,9 @@ from pydantic import BaseModel
 
 Severity = Literal["critical", "high", "medium", "low"]
 Language = Literal["solidity", "vyper", "rust", "move"]
+PipelineName = Literal[
+    "solidity-security", "vyper-security", "rust-security", "move-security"
+]
 
 
 class Finding(BaseModel):
@@ -31,6 +34,7 @@ class ToolRun(BaseModel):
 class AnalysisResponse(BaseModel):
     filename: str
     language: Language
+    pipeline: PipelineName
     finding_count: int
     findings: list[Finding]
     tool_runs: list[ToolRun]
