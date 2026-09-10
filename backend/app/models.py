@@ -40,6 +40,17 @@ class AnalysisResponse(BaseModel):
     tool_runs: list[ToolRun]
 
 
+class ValidationResponse(BaseModel):
+    filename: str
+    status: Literal["improved", "unchanged", "regressed", "inconclusive"]
+    original_finding_count: int
+    revised_finding_count: int
+    original_findings: list[Finding]
+    revised_findings: list[Finding]
+    tool_runs: list[ToolRun]
+    message: str
+
+
 class RemediationResponse(BaseModel):
     rule_id: str
     provider: str

@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 
 from app.detector import analyze_source
 from app.main import app
+from app.models import Finding, ToolRun
 from app.rate_limit import RateLimitMiddleware
 
 
@@ -76,6 +77,41 @@ def test_api_rate_limit_returns_headers_and_429(monkeypatch) -> None:
     assert second.headers["x-ratelimit-remaining"] == "0"
     assert third.status_code == 429
     assert third.headers["retry-after"]
+
+
+def test_validate_remediation_compares_original_and_revised(monkeypatch) -> None:
+    finding = Finding(
+        rule_id="SEC-REENTRANCY-001",
+        title="Reentrancy",
+        category="reentrancy",
+        severity="critical",
+        confidence=0.9,
+        line=3,
+        code="call",
+        explanation="External call before state update.",
+        recommendation="Use checks-effects-interactions.",
+    )
+
+    def fake_analyze(source: str, filename: str) -> tuple[list[Finding], list[ToolRun], str]:
+        del filename
+        findings = [finding] if "vulnerable" in source else []
+        return findings, [ToolRun(tool="test-analyzer", status="completed", finding_count=len(findings))], "solidity-security"
+
+    monkeypatch.setattr("app.main.analyze_solidity", fake_analyze)
+    response = client.post(
+        "/api/v1/validate-remediation",
+        json={
+            "filename": "Vault.sol",
+            "original_source": "vulnerable source",
+            "revised_source": "fixed source",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "improved"
+    assert payload["original_finding_count"] == 1
+    assert payload["revised_finding_count"] == 0
 
 
 def test_analyze_returns_line_level_reentrancy_finding() -> None:

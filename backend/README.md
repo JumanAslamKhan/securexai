@@ -32,6 +32,11 @@ uvicorn app.main:app --reload
 The API response includes `tool_runs`, showing whether each analyzer completed,
 was unavailable, or returned an error.
 
+After reviewing a remediation, call `POST /api/v1/validate-remediation` with
+`original_source` and `revised_source`. SecureXAI rescans both versions and
+returns `improved`, `unchanged`, `regressed`, or `inconclusive`; it never applies
+the model output automatically.
+
 ## Rate Limiting
 
 Versioned API routes are limited to 60 requests per 60 seconds per client IP by
