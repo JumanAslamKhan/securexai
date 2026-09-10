@@ -1,14 +1,33 @@
 import { useState } from "react";
 
+type Finding = {
+  rule_id: string;
+  title: string;
+  category: string;
+  severity: "critical" | "high" | "medium" | "low";
+  confidence: number;
+  line: number;
+  code: string;
+  explanation: string;
+  recommendation: string;
+};
+
+type AnalysisResult = {
+  filename: string;
+  finding_count: number;
+  findings: Finding[];
+};
+
 function App() {
   const [source, setSource] = useState("");
-  const [result, setResult] = useState("");
+  const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   async function analyzeContract() {
     setLoading(true);
-    setResult("");
-
+    setResult(null);
+    setError("");
     try {
       const response = await fetch("http://127.0.0.1:8000/api/v1/analyze", {
         method: "POST",
@@ -29,12 +48,10 @@ function App() {
             : JSON.stringify(data.detail ?? data),
         );
       }
-      setResult(JSON.stringify(data, null, 2));
+      setResult(data);
     } catch (error) {
-      setResult(
-        error instanceof Error
-          ? `Analysis failed: ${error.message}`
-          : "Analysis failed: unknown error",
+      setError(
+        error instanceof Error ? error.message : "Unknown analysis error",
       );
     } finally {
       setLoading(false);
@@ -55,11 +72,39 @@ function App() {
 
       <br />
 
-      <button onClick={analyzeContract} disabled={loading || !source.trim()}>
+      <button
+        onClick={analyzeContract}
+        disabled={loading || !source.trim()}
+      >
         {loading ? "Analyzing..." : "Analyze Contract"}
       </button>
 
-      <pre>{result}</pre>
+      {error && <p>{error}</p>}
+
+      {result && (
+        <section>
+          <h2>
+            Findings: {result.finding_count}
+          </h2>
+
+          {result.findings.map((finding) => (
+            <article key={`${finding.rule_id}-${finding.line}`}>
+              <h3>{finding.title}</h3>
+
+              <p>
+                Severity: {finding.severity} | Line: {finding.line}
+              </p>
+
+              <code>{finding.code}</code>
+
+              <p>{finding.explanation}</p>
+
+              <strong>Recommendation:</strong>
+              <p>{finding.recommendation}</p>
+            </article>
+          ))}
+        </section>
+      )}
     </main>
   );
 }
