@@ -46,7 +46,11 @@ def _llm_remediation(finding: Finding, source: str) -> RemediationResponse | Non
         "messages": [
             {
                 "role": "system",
-                "content": "You are a Solidity security reviewer. Return JSON with summary, patch_guidance, and patch. Never claim the patch is validated.",
+                "content": (
+                    "You are a Solidity security reviewer. Return only one valid JSON object with "
+                    "summary (string), patch_guidance (string), and patch (string or null). "
+                    "Do not use markdown and never claim the patch is validated."
+                ),
             },
             {"role": "user", "content": json.dumps(prompt)},
         ],
@@ -64,13 +68,20 @@ def _llm_remediation(finding: Finding, source: str) -> RemediationResponse | Non
         with http_request.urlopen(http_request_obj, timeout=30) as response:
             payload = json.loads(response.read().decode("utf-8"))
         content = payload["choices"][0]["message"]["content"]
+        if "```" in content:
+            content = content.replace("```json", "").replace("```", "").strip()
         generated = json.loads(content)
+        if not isinstance(generated.get("summary"), str) or not isinstance(
+            generated.get("patch_guidance"), str
+        ):
+            return None
+        patch = generated.get("patch")
         return RemediationResponse(
             rule_id=finding.rule_id,
             provider=f"local-ollama:{model}" if "11434" in base_url else f"openai:{model}",
-            summary=str(generated["summary"]),
-            patch_guidance=str(generated["patch_guidance"]),
-            patch=str(generated.get("patch", "")),
+            summary=generated["summary"],
+            patch_guidance=generated["patch_guidance"],
+            patch=str(patch) if patch else None,
             validation_steps=[
                 "Review the generated patch as a diff.",
                 "Compile the modified contract with the declared Solidity version.",
@@ -78,7 +89,7 @@ def _llm_remediation(finding: Finding, source: str) -> RemediationResponse | Non
             ],
             auto_apply=False,
         )
-    except (KeyError, json.JSONDecodeError, OSError, TimeoutError):
+    except (KeyError, TypeError, json.JSONDecodeError, OSError, TimeoutError):
         return None
 
 
