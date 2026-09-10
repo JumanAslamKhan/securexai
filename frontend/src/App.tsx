@@ -34,6 +34,7 @@ type Remediation = {
   provider: string;
   summary: string;
   patch_guidance: string;
+  patch?: string;
   validation_steps: string[];
   auto_apply: boolean;
 };
@@ -126,7 +127,7 @@ function App() {
       const response = await fetch("http://127.0.0.1:8000/api/v1/remediate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(finding),
+        body: JSON.stringify({ ...finding, source }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail ?? "Remediation failed");
@@ -363,6 +364,9 @@ function App() {
                   <p className="eyebrow">{remediations[`${finding.rule_id}-${finding.line}`].provider}</p>
                   <strong>{remediations[`${finding.rule_id}-${finding.line}`].summary}</strong>
                   <p>{remediations[`${finding.rule_id}-${finding.line}`].patch_guidance}</p>
+                  {remediations[`${finding.rule_id}-${finding.line}`].patch && (
+                    <pre className="patch-preview">{remediations[`${finding.rule_id}-${finding.line}`].patch}</pre>
+                  )}
                   <ul>
                     {remediations[`${finding.rule_id}-${finding.line}`].validation_steps.map((step) => (
                       <li key={step}>{step}</li>

@@ -29,7 +29,7 @@ class AnalyzeRequest(BaseModel):
 
 
 class RemediationRequest(Finding):
-    pass
+    source: str | None = None
 
 
 @app.get("/health")
@@ -59,4 +59,4 @@ def analyze_contract(request: AnalyzeRequest) -> AnalysisResponse:
 
 @app.post("/api/v1/remediate", response_model=RemediationResponse)
 def remediate_finding(request: RemediationRequest) -> RemediationResponse:
-    return build_remediation(request)
+    return build_remediation(request, request.source)

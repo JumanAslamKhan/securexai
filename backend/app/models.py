@@ -45,5 +45,6 @@ class RemediationResponse(BaseModel):
     provider: str
     summary: str
     patch_guidance: str
+    patch: str | None = None
     validation_steps: list[str]
     auto_apply: bool

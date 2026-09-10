@@ -32,6 +32,13 @@ uvicorn app.main:app --reload
 The API response includes `tool_runs`, showing whether each analyzer completed,
 was unavailable, or returned an error.
 
+## Optional LLM Remediation
+
+Copy `.env.example` to `.env` and set `OPENAI_API_KEY` to enable structured
+remediation summaries and patch previews. Without a key, the local rule-guidance
+provider is used. Generated patches are never auto-applied and must be reviewed,
+compiled, and rescanned.
+
 ## Test
 
 ```powershell
