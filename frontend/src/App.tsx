@@ -203,6 +203,32 @@ function App() {
     URL.revokeObjectURL(link.href);
   }
 
+  function downloadGeneratedReport(format: "json" | "html") {
+    if (!result || !report) return;
+    const escapeHtml = (value: string) =>
+      value.replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[character] ?? character);
+    const content = format === "json"
+      ? JSON.stringify({ analysis: result, vulnerability_report: report }, null, 2)
+      : `<!doctype html>
+<html><head><meta charset="utf-8"><title>${escapeHtml(report.title)}</title>
+<style>body{font:16px Arial,sans-serif;max-width:900px;margin:40px auto;color:#17202b}section{border:1px solid #dce3e1;border-radius:8px;padding:18px;margin:14px 0}.risk{display:flex;gap:18px;text-transform:capitalize}.critical{color:#c94b45}.high{color:#b56f1d}</style>
+</head><body><h1>${escapeHtml(report.title)}</h1><p><b>File:</b> ${escapeHtml(result.filename)} | <b>Provider:</b> ${escapeHtml(report.provider)}</p>
+<section><h2>Executive summary</h2><p>${escapeHtml(report.executive_summary)}</p><div class="risk">${Object.entries(report.risk_summary).map(([severity, count]) => `<span class="${escapeHtml(severity)}"><b>${escapeHtml(severity)}:</b> ${count}</span>`).join("")}</div></section>
+<section><h2>Recommended actions</h2><ul>${report.recommended_actions.map((action) => `<li>${escapeHtml(action)}</li>`).join("")}</ul><p><b>Validation:</b> ${escapeHtml(report.validation_note)}</p></section></body></html>`;
+    const blob = new Blob([content], { type: format === "json" ? "application/json" : "text/html" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${result.filename.replace(/\.[^.]+$/, "")}-vulnerability-report.${format}`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
   const visibleFindings = result?.findings.filter((finding) =>
     severityFilter === "all" || finding.severity === severityFilter,
   ) ?? [];
@@ -372,6 +398,10 @@ function App() {
                   {Object.entries(report.risk_summary).map(([severity, count]) => (
                     <span key={severity}>{severity}: <b>{count}</b></span>
                   ))}
+                </div>
+                <div className="export-actions report-export">
+                  <button type="button" className="ghost-button" onClick={() => downloadGeneratedReport("json")}>JSON</button>
+                  <button type="button" className="ghost-button" onClick={() => downloadGeneratedReport("html")}>HTML</button>
                 </div>
               </div>
               <p>{report.executive_summary}</p>
