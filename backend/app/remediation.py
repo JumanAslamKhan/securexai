@@ -26,12 +26,10 @@ _GUIDANCE = {
 
 
 def _llm_remediation(finding: Finding, source: str) -> RemediationResponse | None:
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return None
-
-    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-    endpoint = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1") + "/chat/completions"
+    base_url = os.getenv("OPENAI_BASE_URL", "http://127.0.0.1:11434/v1")
+    api_key = os.getenv("OPENAI_API_KEY", "ollama")
+    model = os.getenv("OPENAI_MODEL", "llama3:latest")
+    endpoint = base_url.rstrip("/") + "/chat/completions"
     prompt = {
         "rule_id": finding.rule_id,
         "title": finding.title,
@@ -69,7 +67,7 @@ def _llm_remediation(finding: Finding, source: str) -> RemediationResponse | Non
         generated = json.loads(content)
         return RemediationResponse(
             rule_id=finding.rule_id,
-            provider=f"openai:{model}",
+            provider=f"local-ollama:{model}" if "11434" in base_url else f"openai:{model}",
             summary=str(generated["summary"]),
             patch_guidance=str(generated["patch_guidance"]),
             patch=str(generated.get("patch", "")),
@@ -85,7 +83,7 @@ def _llm_remediation(finding: Finding, source: str) -> RemediationResponse | Non
 
 
 def build_remediation(finding: Finding, source: str | None = None) -> RemediationResponse:
-    if source and os.getenv("OPENAI_API_KEY"):
+    if source:
         generated = _llm_remediation(finding, source)
         if generated:
             return generated

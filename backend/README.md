@@ -32,12 +32,13 @@ uvicorn app.main:app --reload
 The API response includes `tool_runs`, showing whether each analyzer completed,
 was unavailable, or returned an error.
 
-## Optional LLM Remediation
+## Local LLM Remediation
 
-Copy `.env.example` to `.env` and set `OPENAI_API_KEY` to enable structured
-remediation summaries and patch previews. Without a key, the local rule-guidance
-provider is used. Generated patches are never auto-applied and must be reviewed,
-compiled, and rescanned.
+Ollama is the default provider and uses the locally installed `llama3:latest`
+model through `http://127.0.0.1:11434/v1`. No API key is required. Set
+`OPENAI_MODEL=qwen2.5-coder:7b` after downloading that model for a
+coding-focused provider. Generated patches are never auto-applied and must be
+reviewed, compiled, and rescanned.
 
 ## Test
 
