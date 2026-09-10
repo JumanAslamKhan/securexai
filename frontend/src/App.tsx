@@ -16,6 +16,14 @@ type AnalysisResult = {
   filename: string;
   finding_count: number;
   findings: Finding[];
+  tool_runs: ToolRun[];
+};
+
+type ToolRun = {
+  tool: string;
+  status: "completed" | "unavailable" | "error";
+  finding_count: number;
+  message: string;
 };
 
 function App() {
@@ -86,6 +94,12 @@ function App() {
           <h2>
             Findings: {result.finding_count}
           </h2>
+
+          <p>
+            {result.tool_runs.map((toolRun) =>
+              `${toolRun.tool}: ${toolRun.status} (${toolRun.finding_count})`,
+            ).join(" | ")}
+          </p>
 
           {result.findings.map((finding) => (
             <article key={`${finding.rule_id}-${finding.line}`}>

@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from app.detector import analyze_source
+from app.analyzers import run_external_analyzers
 from app.models import AnalysisResponse
 
 app = FastAPI(
@@ -33,8 +34,11 @@ def health() -> dict[str, str]:
 @app.post("/api/v1/analyze", response_model=AnalysisResponse)
 def analyze_contract(request: AnalyzeRequest) -> AnalysisResponse:
     findings = analyze_source(request.filename, request.source)
+    external_findings, tool_runs = run_external_analyzers(request.source)
+    findings.extend(external_findings)
     return AnalysisResponse(
         filename=request.filename,
         finding_count=len(findings),
         findings=findings,
+        tool_runs=tool_runs,
     )

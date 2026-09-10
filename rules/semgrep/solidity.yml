@@ -1,0 +1,28 @@
+rules:
+  - id: securexai.reentrancy.external-call
+    message: External call may enable reentrancy
+    severity: ERROR
+    languages: [generic]
+    patterns:
+      - pattern-regex: '\.call\s*\{'
+
+  - id: securexai.access-control.tx-origin
+    message: tx.origin used for authorization
+    severity: WARNING
+    languages: [generic]
+    patterns:
+      - pattern-regex: '\btx\.origin\b'
+
+  - id: securexai.dangerous-operation.selfdestruct
+    message: Contract destruction capability detected
+    severity: ERROR
+    languages: [generic]
+    patterns:
+      - pattern-regex: '\bselfdestruct\s*\('
+
+  - id: securexai.unchecked-call.low-level
+    message: Low-level external call should be checked
+    severity: WARNING
+    languages: [generic]
+    patterns:
+      - pattern-regex: '\.(send|delegatecall|staticcall)\s*\('

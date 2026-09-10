@@ -36,6 +36,8 @@ def test_analyze_returns_line_level_reentrancy_finding() -> None:
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["finding_count"] == 1
-    assert payload["findings"][0]["category"] == "reentrancy"
-    assert payload["findings"][0]["line"] == 3
+    assert payload["finding_count"] >= 1
+    assert any(finding["category"] == "reentrancy" for finding in payload["findings"])
+    assert any(finding["source_tool"] == "semgrep" for finding in payload["findings"])
+    assert any(finding["line"] == 3 for finding in payload["findings"])
+    assert {tool["tool"] for tool in payload["tool_runs"]} == {"semgrep", "slither"}

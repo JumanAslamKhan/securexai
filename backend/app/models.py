@@ -19,7 +19,15 @@ class Finding(BaseModel):
     source_tool: str = "securexai-pattern-detector"
 
 
+class ToolRun(BaseModel):
+    tool: str
+    status: Literal["completed", "unavailable", "error"]
+    finding_count: int
+    message: str = ""
+
+
 class AnalysisResponse(BaseModel):
     filename: str
     finding_count: int
     findings: list[Finding]
+    tool_runs: list[ToolRun]
