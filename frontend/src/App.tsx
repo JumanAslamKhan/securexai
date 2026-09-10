@@ -28,11 +28,14 @@ type ToolRun = {
   message: string;
 };
 
+type SeverityFilter = "all" | Finding["severity"];
+
 function App() {
   const [source, setSource] = useState("");
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
 
   async function analyzeContract() {
     setLoading(true);
@@ -93,22 +96,67 @@ function App() {
 
       {result && (
         <section>
-          <h2>
-            Findings: {result.finding_count}
-          </h2>
+          <div className="results-heading">
+            <div>
+              <p className="eyebrow">Analysis complete</p>
+              <h2>{result.filename}</h2>
+            </div>
+            <label>
+              Filter severity
+              <select
+                value={severityFilter}
+                onChange={(event) =>
+                  setSeverityFilter(event.target.value as SeverityFilter)
+                }
+              >
+                <option value="all">All findings</option>
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </label>
+          </div>
 
-          <p>
+          <div className="summary-grid">
+            {(["critical", "high", "medium", "low"] as const).map((severity) => (
+              <div className={`summary-tile severity-${severity}`} key={severity}>
+                <span>{severity}</span>
+                <strong>
+                  {result.findings.filter((finding) => finding.severity === severity).length}
+                </strong>
+              </div>
+            ))}
+          </div>
+
+          <p className="tool-status">
             {result.tool_runs.map((toolRun) =>
               `${toolRun.tool}: ${toolRun.status} (${toolRun.finding_count})`,
             ).join(" | ")}
           </p>
 
-          {result.findings.map((finding) => (
+          <p className="result-count">
+            Showing {result.findings.filter((finding) =>
+              severityFilter === "all" || finding.severity === severityFilter,
+            ).length} of {result.finding_count} findings
+          </p>
+
+          <div className="findings-list">
+          {result.findings
+            .filter((finding) =>
+              severityFilter === "all" || finding.severity === severityFilter,
+            )
+            .map((finding) => (
             <article key={`${finding.rule_id}-${finding.line}`}>
-              <h3>{finding.title}</h3>
+              <div className="finding-header">
+                <h3>{finding.title}</h3>
+                <span className={`severity-badge severity-${finding.severity}`}>
+                  {finding.severity}
+                </span>
+              </div>
 
               <p>
-                Severity: {finding.severity} | Line: {finding.line}
+                Line {finding.line} | Confidence {Math.round(finding.confidence * 100)}%
               </p>
 
               <p>Detected by: {finding.source_tools.join(", ")}</p>
@@ -121,6 +169,7 @@ function App() {
               <p>{finding.recommendation}</p>
             </article>
           ))}
+          </div>
         </section>
       )}
     </main>
