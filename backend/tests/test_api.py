@@ -12,6 +12,20 @@ def test_health() -> None:
     assert response.json()["status"] == "ok"
 
 
+def test_analyze_allows_frontend_preflight() -> None:
+    response = client.options(
+        "/api/v1/analyze",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+
 def test_analyze_returns_line_level_reentrancy_finding() -> None:
     source = """contract Vault {\n    function withdraw() external {\n        (bool ok,) = msg.sender.call{value: 1 ether}(\"\");\n        require(ok);\n    }\n}\n"""
 
