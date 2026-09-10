@@ -17,6 +17,7 @@ class Finding(BaseModel):
     explanation: str
     recommendation: str
     source_tool: str = "securexai-pattern-detector"
+    source_tools: list[str] = []
 
 
 class ToolRun(BaseModel):

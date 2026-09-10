@@ -10,6 +10,8 @@ type Finding = {
   code: string;
   explanation: string;
   recommendation: string;
+  source_tool: string;
+  source_tools: string[];
 };
 
 type AnalysisResult = {
@@ -108,6 +110,8 @@ function App() {
               <p>
                 Severity: {finding.severity} | Line: {finding.line}
               </p>
+
+              <p>Detected by: {finding.source_tools.join(", ")}</p>
 
               <code>{finding.code}</code>
 

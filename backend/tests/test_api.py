@@ -38,8 +38,14 @@ def test_analyze_returns_line_level_reentrancy_finding() -> None:
     payload = response.json()
     assert payload["finding_count"] >= 1
     assert any(finding["category"] == "reentrancy" for finding in payload["findings"])
-    assert any(finding["source_tool"] == "semgrep" for finding in payload["findings"])
     assert any(finding["line"] == 3 for finding in payload["findings"])
+    reentrancy = next(
+        finding for finding in payload["findings"] if finding["category"] == "reentrancy"
+    )
+    assert set(reentrancy["source_tools"]) == {
+        "securexai-pattern-detector",
+        "semgrep",
+    }
 
 
 def test_slither_finds_reentrancy() -> None:
@@ -62,9 +68,7 @@ contract Payments {
 
     assert response.status_code == 200
     payload = response.json()
-    slither_findings = [
-        finding for finding in payload["findings"] if finding["source_tool"] == "slither"
-    ]
+    slither_findings = [finding for finding in payload["findings"] if "slither" in finding["source_tools"]]
     assert slither_findings
     assert any(finding["line"] == 6 for finding in slither_findings)
     assert {tool["tool"] for tool in payload["tool_runs"]} == {"semgrep", "slither"}
