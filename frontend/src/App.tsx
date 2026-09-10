@@ -30,6 +30,15 @@ type ToolRun = {
   message: string;
 };
 
+type VulnerabilityReport = {
+  provider: string;
+  title: string;
+  executive_summary: string;
+  risk_summary: Record<string, number>;
+  recommended_actions: string[];
+  validation_note: string;
+};
+
 type Remediation = {
   provider: string;
   summary: string;
@@ -70,6 +79,8 @@ function App() {
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
   const [remediations, setRemediations] = useState<Record<string, Remediation>>({});
   const [remediationLoading, setRemediationLoading] = useState("");
+  const [report, setReport] = useState<VulnerabilityReport | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
 
   async function loadContractFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -136,6 +147,26 @@ function App() {
       setError(error instanceof Error ? error.message : "Remediation failed");
     } finally {
       setRemediationLoading("");
+    }
+  }
+
+  async function generateVulnerabilityReport() {
+    if (!result) return;
+    setReportLoading(true);
+    setError("");
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/v1/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(result),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail ?? "Report generation failed");
+      setReport(data);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Report generation failed");
+    } finally {
+      setReportLoading(false);
     }
   }
 
@@ -320,6 +351,37 @@ function App() {
               </span>
             ))}
           </div>
+
+          <button
+            type="button"
+            className="report-button"
+            onClick={generateVulnerabilityReport}
+            disabled={reportLoading}
+          >
+            {reportLoading ? "Generating vulnerability report..." : "Generate vulnerability report"}
+          </button>
+
+          {report && (
+            <div className="report-panel">
+              <div className="report-heading">
+                <div>
+                  <p className="eyebrow">{report.provider}</p>
+                  <h3>{report.title}</h3>
+                </div>
+                <div className="risk-summary">
+                  {Object.entries(report.risk_summary).map(([severity, count]) => (
+                    <span key={severity}>{severity}: <b>{count}</b></span>
+                  ))}
+                </div>
+              </div>
+              <p>{report.executive_summary}</p>
+              <strong>Recommended actions</strong>
+              <ul>
+                {report.recommended_actions.map((action) => <li key={action}>{action}</li>)}
+              </ul>
+              <small>{report.validation_note}</small>
+            </div>
+          )}
 
           <p className="result-count">
             Showing {visibleFindings.length} of {result.finding_count} findings

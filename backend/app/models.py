@@ -48,3 +48,12 @@ class RemediationResponse(BaseModel):
     patch: str | None = None
     validation_steps: list[str]
     auto_apply: bool
+
+
+class VulnerabilityReport(BaseModel):
+    provider: str
+    title: str
+    executive_summary: str
+    risk_summary: dict[str, int]
+    recommended_actions: list[str]
+    validation_note: str

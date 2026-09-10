@@ -142,3 +142,40 @@ def test_remediation_returns_validated_guidance_without_auto_apply() -> None:
     assert payload["provider"] == "securexai-rule-guidance"
     assert payload["auto_apply"] is False
     assert payload["validation_steps"]
+
+
+def test_report_returns_audit_summary() -> None:
+    response = client.post(
+        "/api/v1/report",
+        json={
+            "filename": "Contract.sol",
+            "language": "solidity",
+            "pipeline": "solidity-security",
+            "finding_count": 1,
+            "findings": [],
+            "tool_runs": [],
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["provider"] in {"local-ollama:qwen2.5-coder:7b", "securexai-local-report"}
+    assert payload["recommended_actions"]
+
+
+def test_report_falls_back_when_llm_returns_invalid_shape(monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_BASE_URL", "http://127.0.0.1:9/v1")
+    response = client.post(
+        "/api/v1/report",
+        json={
+            "filename": "Contract.sol",
+            "language": "solidity",
+            "pipeline": "solidity-security",
+            "finding_count": 0,
+            "findings": [],
+            "tool_runs": [],
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["provider"] == "securexai-local-report"

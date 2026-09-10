@@ -2,10 +2,16 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from app.models import AnalysisResponse, Language
-from app.models import Finding, RemediationResponse
+from app.models import (
+    AnalysisResponse,
+    Finding,
+    Language,
+    RemediationResponse,
+    VulnerabilityReport,
+)
 from app.pipelines import analyze_other_language, analyze_solidity
 from app.remediation import build_remediation
+from app.reporting import generate_report
 
 app = FastAPI(
     title="SecureXAI API",
@@ -60,3 +66,8 @@ def analyze_contract(request: AnalyzeRequest) -> AnalysisResponse:
 @app.post("/api/v1/remediate", response_model=RemediationResponse)
 def remediate_finding(request: RemediationRequest) -> RemediationResponse:
     return build_remediation(request, request.source)
+
+
+@app.post("/api/v1/report", response_model=VulnerabilityReport)
+def vulnerability_report(request: AnalysisResponse) -> VulnerabilityReport:
+    return generate_report(request)
