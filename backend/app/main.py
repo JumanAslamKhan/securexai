@@ -3,7 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from app.models import AnalysisResponse, Language
+from app.models import Finding, RemediationResponse
 from app.pipelines import analyze_other_language, analyze_solidity
+from app.remediation import build_remediation
 
 app = FastAPI(
     title="SecureXAI API",
@@ -24,6 +26,10 @@ class AnalyzeRequest(BaseModel):
     filename: str = Field(default="Contract.sol", min_length=1)
     source: str = Field(min_length=1)
     language: Language = "solidity"
+
+
+class RemediationRequest(Finding):
+    pass
 
 
 @app.get("/health")
@@ -49,3 +55,8 @@ def analyze_contract(request: AnalyzeRequest) -> AnalysisResponse:
         findings=findings,
         tool_runs=tool_runs,
     )
+
+
+@app.post("/api/v1/remediate", response_model=RemediationResponse)
+def remediate_finding(request: RemediationRequest) -> RemediationResponse:
+    return build_remediation(request)

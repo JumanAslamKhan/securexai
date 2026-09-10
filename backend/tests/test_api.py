@@ -119,3 +119,26 @@ def test_rust_analysis_routes_unsupported_tools_honestly() -> None:
     assert payload["finding_count"] == 0
     assert payload["tool_runs"][0]["tool"] == "language-specific-pipeline"
     assert payload["tool_runs"][0]["status"] == "skipped"
+
+
+def test_remediation_returns_validated_guidance_without_auto_apply() -> None:
+    response = client.post(
+        "/api/v1/remediate",
+        json={
+            "rule_id": "SEC-REENTRANCY-001",
+            "title": "External call may enable reentrancy",
+            "category": "reentrancy",
+            "severity": "critical",
+            "confidence": 0.78,
+            "line": 6,
+            "code": "msg.sender.call{value: amount}(\"\");",
+            "explanation": "External call before state update.",
+            "recommendation": "Use checks-effects-interactions.",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["provider"] == "securexai-rule-guidance"
+    assert payload["auto_apply"] is False
+    assert payload["validation_steps"]

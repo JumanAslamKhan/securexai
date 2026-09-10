@@ -38,3 +38,12 @@ class AnalysisResponse(BaseModel):
     finding_count: int
     findings: list[Finding]
     tool_runs: list[ToolRun]
+
+
+class RemediationResponse(BaseModel):
+    rule_id: str
+    provider: str
+    summary: str
+    patch_guidance: str
+    validation_steps: list[str]
+    auto_apply: bool

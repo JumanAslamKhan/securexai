@@ -237,6 +237,34 @@ button {
   padding-inline: 18px;
 }
 
+.remediation-button {
+  margin: 16px 0 0;
+  border-color: var(--accent-border);
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.remediation-panel {
+  display: grid;
+  gap: 7px;
+  margin-top: 14px;
+  padding: 14px;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-bg);
+}
+
+.remediation-panel .eyebrow {
+  margin: 0;
+  font-size: 11px;
+}
+
+.remediation-panel ul {
+  margin: 4px 0 0;
+  padding-left: 20px;
+  color: var(--text);
+  font-size: 13px;
+}
+
 button:disabled {
   cursor: wait;
   opacity: 0.55;

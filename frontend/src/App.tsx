@@ -30,6 +30,14 @@ type ToolRun = {
   message: string;
 };
 
+type Remediation = {
+  provider: string;
+  summary: string;
+  patch_guidance: string;
+  validation_steps: string[];
+  auto_apply: boolean;
+};
+
 type SeverityFilter = "all" | Finding["severity"];
 type Language = "solidity" | "vyper" | "rust" | "move";
 
@@ -59,6 +67,8 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
+  const [remediations, setRemediations] = useState<Record<string, Remediation>>({});
+  const [remediationLoading, setRemediationLoading] = useState("");
 
   async function loadContractFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -106,6 +116,25 @@ function App() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function getRemediation(finding: Finding) {
+    const key = `${finding.rule_id}-${finding.line}`;
+    setRemediationLoading(key);
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/v1/remediate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(finding),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail ?? "Remediation failed");
+      setRemediations((current) => ({ ...current, [key]: data }));
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Remediation failed");
+    } finally {
+      setRemediationLoading("");
     }
   }
 
@@ -317,6 +346,30 @@ function App() {
 
               <strong>Recommendation:</strong>
               <p>{finding.recommendation}</p>
+
+              <button
+                type="button"
+                className="remediation-button"
+                onClick={() => getRemediation(finding)}
+                disabled={remediationLoading === `${finding.rule_id}-${finding.line}`}
+              >
+                {remediationLoading === `${finding.rule_id}-${finding.line}`
+                  ? "Preparing guidance..."
+                  : "Prepare remediation guidance"}
+              </button>
+
+              {remediations[`${finding.rule_id}-${finding.line}`] && (
+                <div className="remediation-panel">
+                  <p className="eyebrow">{remediations[`${finding.rule_id}-${finding.line}`].provider}</p>
+                  <strong>{remediations[`${finding.rule_id}-${finding.line}`].summary}</strong>
+                  <p>{remediations[`${finding.rule_id}-${finding.line}`].patch_guidance}</p>
+                  <ul>
+                    {remediations[`${finding.rule_id}-${finding.line}`].validation_steps.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </article>
           ))}
           {!visibleFindings.length && (
