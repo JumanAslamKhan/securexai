@@ -320,6 +320,54 @@ button:disabled {
   font-size: 24px;
 }
 
+.benchmark-panel {
+  margin: 18px 0;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f1f6f4;
+}
+
+.benchmark-panel h3 {
+  margin: 0;
+  color: var(--text-h);
+  font-size: 18px;
+}
+
+.benchmark-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.benchmark-item {
+  display: grid;
+  gap: 3px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+.benchmark-item span {
+  overflow: hidden;
+  color: var(--text);
+  font: 12px var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.benchmark-item strong {
+  color: var(--text-h);
+  font-size: 24px;
+}
+
+.benchmark-item small {
+  color: var(--text);
+  font-size: 11px;
+}
+
 .severity-critical { border-left-color: #c94b45; }
 .severity-high { border-left-color: #d68b2c; }
 .severity-medium { border-left-color: #b7a331; }

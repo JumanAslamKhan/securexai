@@ -257,6 +257,32 @@ function App() {
             ))}
           </div>
 
+          <div className="benchmark-panel">
+            <div>
+              <p className="eyebrow">Benchmark snapshot</p>
+              <h3>Analyzer comparison</h3>
+            </div>
+            <div className="benchmark-grid">
+              {result.tool_runs.map((toolRun) => {
+                const normalizedCount = result.findings.filter((finding) =>
+                  finding.source_tools.includes(toolRun.tool),
+                ).length;
+                return (
+                  <div className="benchmark-item" key={toolRun.tool}>
+                    <span>{toolRun.tool}</span>
+                    <strong>{normalizedCount}</strong>
+                    <small>{toolRun.finding_count} raw · {toolRun.status}</small>
+                  </div>
+                );
+              })}
+              <div className="benchmark-item">
+                <span>Cross-tool overlap</span>
+                <strong>{result.findings.filter((finding) => finding.source_tools.length > 1).length}</strong>
+                <small>normalized findings</small>
+              </div>
+            </div>
+          </div>
+
           <div className="tool-status">
             {result.tool_runs.map((toolRun) => (
               <span className={`tool-chip tool-${toolRun.status}`} key={toolRun.tool}>
