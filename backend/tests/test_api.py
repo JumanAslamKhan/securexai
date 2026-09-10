@@ -40,4 +40,31 @@ def test_analyze_returns_line_level_reentrancy_finding() -> None:
     assert any(finding["category"] == "reentrancy" for finding in payload["findings"])
     assert any(finding["source_tool"] == "semgrep" for finding in payload["findings"])
     assert any(finding["line"] == 3 for finding in payload["findings"])
+
+
+def test_slither_finds_reentrancy() -> None:
+    source = """pragma solidity ^0.8.20;
+contract Payments {
+    mapping(address => uint256) public balances;
+    function withdraw(uint256 amount) external {
+        require(balances[msg.sender] >= amount);
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success);
+        balances[msg.sender] -= amount;
+    }
+}
+"""
+
+    response = client.post(
+        "/api/v1/analyze",
+        json={"filename": "Payments.sol", "source": source},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    slither_findings = [
+        finding for finding in payload["findings"] if finding["source_tool"] == "slither"
+    ]
+    assert slither_findings
+    assert any(finding["line"] == 6 for finding in slither_findings)
     assert {tool["tool"] for tool in payload["tool_runs"]} == {"semgrep", "slither"}

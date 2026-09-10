@@ -24,7 +24,14 @@ def _executable(name: str, environment_name: str) -> str | None:
     return str(local_executable) if local_executable.exists() else None
 
 
-def _run(command: list[str], timeout: int = 90) -> tuple[int, str, str]:
+def _run(
+    command: list[str], timeout: int = 90, cwd: str | None = None
+) -> tuple[int, str, str]:
+    environment = os.environ.copy()
+    local_scripts = PROJECT_ROOT / ".tools-venv" / "Scripts"
+    environment["PATH"] = os.pathsep.join(
+        [str(local_scripts), environment.get("PATH", "")]
+    )
     try:
         completed = subprocess.run(
             command,
@@ -32,6 +39,8 @@ def _run(command: list[str], timeout: int = 90) -> tuple[int, str, str]:
             text=True,
             timeout=timeout,
             check=False,
+            env=environment,
+            cwd=cwd,
         )
     except (OSError, subprocess.TimeoutExpired) as error:
         return 127, "", str(error)
@@ -99,7 +108,13 @@ def run_semgrep(source: str) -> tuple[list[Finding], ToolRun]:
 def _slither_line(item: dict[str, Any]) -> int:
     source_mapping = item.get("source_mapping", {})
     lines = source_mapping.get("lines", [])
-    return int(lines[0]) if lines else 1
+    if lines:
+        return int(lines[0])
+    for element in item.get("elements", []):
+        element_lines = element.get("source_mapping", {}).get("lines", [])
+        if element.get("type") == "node" and element_lines:
+            return int(element_lines[0])
+    return 1
 
 
 def _slither_finding(item: dict[str, Any], source: str) -> Finding:
@@ -142,14 +157,16 @@ def run_slither(source: str) -> tuple[list[Finding], ToolRun]:
     with tempfile.TemporaryDirectory(prefix="securexai-") as directory:
         contract = Path(directory) / "Contract.sol"
         contract.write_text(source, encoding="utf-8")
-        code, stdout, stderr = _run([executable, str(contract), "--json", "-"])
-    if code not in (0, 1):
+        code, stdout, stderr = _run(
+            [executable, "Contract.sol", "--json", "-"], cwd=directory
+        )
+    if code not in (0, 1, -1, 4294967295):
         return [], ToolRun(tool="slither", status="error", finding_count=0, message=stderr.strip() or "Slither failed.")
     try:
         payload = json.loads(stdout or "{}")
     except json.JSONDecodeError:
         return [], ToolRun(tool="slither", status="error", finding_count=0, message="Slither returned invalid JSON.")
-    detectors = payload.get("results", {}).get("detectors", [])
+    detectors = payload.get("detectors", payload.get("results", {}).get("detectors", []))
     findings = [_slither_finding(item, source) for item in detectors]
     return findings, ToolRun(tool="slither", status="completed", finding_count=len(findings), message="")
 
