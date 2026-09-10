@@ -117,6 +117,31 @@ function App() {
     setError("");
   }
 
+  function downloadReport(format: "json" | "html") {
+    if (!result) return;
+    const escapeHtml = (value: string) =>
+      value.replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[character] ?? character);
+    const report = format === "json"
+      ? JSON.stringify(result, null, 2)
+      : `<!doctype html>
+<html><head><meta charset="utf-8"><title>SecureXAI report - ${escapeHtml(result.filename)}</title>
+<style>body{font:16px Arial,sans-serif;max-width:900px;margin:40px auto;color:#17202b}article{border:1px solid #dce3e1;border-radius:8px;padding:18px;margin:14px 0}pre{background:#eef3f1;padding:12px;overflow:auto}.critical{color:#c94b45}.high{color:#b56f1d}</style>
+</head><body><h1>SecureXAI analysis report</h1><p><b>File:</b> ${escapeHtml(result.filename)} | <b>Pipeline:</b> ${escapeHtml(result.pipeline)}</p>
+<h2>Findings: ${result.finding_count}</h2>${result.findings.map((finding) => `<article><h3 class="${finding.severity}">${escapeHtml(finding.title)}</h3><p><b>Severity:</b> ${finding.severity} | <b>Line:</b> ${finding.line} | <b>Confidence:</b> ${Math.round(finding.confidence * 100)}%</p><p><b>Detected by:</b> ${escapeHtml(finding.source_tools.join(", "))}</p><pre>${escapeHtml(finding.code)}</pre><p>${escapeHtml(finding.explanation)}</p><p><b>Recommendation:</b> ${escapeHtml(finding.recommendation)}</p></article>`).join("")}</body></html>`;
+    const blob = new Blob([report], { type: format === "json" ? "application/json" : "text/html" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${result.filename.replace(/\.[^.]+$/, "")}-securexai.${format}`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
   const visibleFindings = result?.findings.filter((finding) =>
     severityFilter === "all" || finding.severity === severityFilter,
   ) ?? [];
@@ -198,21 +223,27 @@ function App() {
               <h2>{result.filename}</h2>
               <p className="pipeline-label">Pipeline: {result.pipeline}</p>
             </div>
-            <label>
-              Filter severity
-              <select
-                value={severityFilter}
-                onChange={(event) =>
-                  setSeverityFilter(event.target.value as SeverityFilter)
-                }
-              >
-                <option value="all">All findings</option>
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-              </select>
-            </label>
+            <div className="results-actions">
+              <label>
+                Filter severity
+                <select
+                  value={severityFilter}
+                  onChange={(event) =>
+                    setSeverityFilter(event.target.value as SeverityFilter)
+                  }
+                >
+                  <option value="all">All findings</option>
+                  <option value="critical">Critical</option>
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
+                </select>
+              </label>
+              <div className="export-actions">
+                <button type="button" className="ghost-button" onClick={() => downloadReport("json")}>JSON</button>
+                <button type="button" className="ghost-button" onClick={() => downloadReport("html")}>HTML</button>
+              </div>
+            </div>
           </div>
 
           <div className="summary-grid">

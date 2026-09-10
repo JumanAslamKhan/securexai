@@ -250,6 +250,22 @@ button:disabled {
   gap: 20px;
 }
 
+.results-actions,
+.export-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.export-actions {
+  align-items: center;
+}
+
+.export-actions .ghost-button {
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
 .results-section {
   padding-bottom: 24px;
 }
