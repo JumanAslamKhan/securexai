@@ -33,6 +33,24 @@ type ToolRun = {
 type SeverityFilter = "all" | Finding["severity"];
 type Language = "solidity" | "vyper" | "rust" | "move";
 
+const sampleContract = `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract VulnerableVault {
+  mapping(address => uint256) public balances;
+
+  function withdraw(uint256 amount) external {
+    require(balances[msg.sender] >= amount);
+    (bool success, ) = msg.sender.call{value: amount}("");
+    require(success);
+    balances[msg.sender] -= amount;
+  }
+
+  function adminAction() external {
+    require(tx.origin == msg.sender);
+  }
+}`;
+
 function App() {
   const [source, setSource] = useState("");
   const [filename, setFilename] = useState("Contract.sol");
@@ -91,53 +109,89 @@ function App() {
     }
   }
 
+  function loadSample() {
+    setFilename("VulnerableVault.sol");
+    setLanguage("solidity");
+    setSource(sampleContract);
+    setResult(null);
+    setError("");
+  }
+
+  const visibleFindings = result?.findings.filter((finding) =>
+    severityFilter === "all" || finding.severity === severityFilter,
+  ) ?? [];
+
   return (
     <main>
-      <h1>SecureXAI Contract Analyzer</h1>
+      <header className="app-header">
+        <div>
+          <p className="brand-kicker">SecureXAI / audit workspace</p>
+          <h1>Contract security, made legible.</h1>
+          <p className="header-copy">
+            Run independent analyzers, compare their evidence, and triage risk before deployment.
+          </p>
+        </div>
+        <div className="header-meta">
+          <span className="live-dot" />
+          Local analysis
+        </div>
+      </header>
 
-      <textarea
-        value={source}
-        onChange={(event) => setSource(event.target.value)}
-        placeholder="Paste Solidity code here"
-        rows={16}
-        cols={80}
-      />
+      <section className="editor-panel">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Source</p>
+            <h2>Inspect a contract</h2>
+          </div>
+          <button className="ghost-button" onClick={loadSample} type="button">
+            Load vulnerable sample
+          </button>
+        </div>
 
-      <div className="language-row">
-        <label htmlFor="language">Language</label>
-        <select
-          id="language"
-          value={language}
-          onChange={(event) => setLanguage(event.target.value as Language)}
-        >
-          <option value="solidity">Solidity</option>
-          <option value="vyper">Vyper</option>
-          <option value="rust">Rust</option>
-          <option value="move">Move</option>
-        </select>
-      </div>
+        <div className="editor-toolbar">
+          <span className="filename">{filename}</span>
+          <div className="language-row">
+            <label htmlFor="language">Language</label>
+            <select
+              id="language"
+              value={language}
+              onChange={(event) => setLanguage(event.target.value as Language)}
+            >
+              <option value="solidity">Solidity</option>
+              <option value="vyper">Vyper</option>
+              <option value="rust">Rust</option>
+              <option value="move">Move</option>
+            </select>
+          </div>
+        </div>
 
-      <div className="input-actions">
-        <label className="file-picker">
-          <span>Choose Solidity file</span>
-          <input type="file" accept=".sol,text/plain" onChange={loadContractFile} />
-        </label>
-        <span className="filename">{filename}</span>
-      </div>
+        <textarea
+          value={source}
+          onChange={(event) => setSource(event.target.value)}
+          placeholder="Paste source code or load a file to begin analysis"
+          rows={18}
+        />
 
-      <br />
+        <div className="input-actions">
+          <label className="file-picker">
+            <span>Choose source file</span>
+            <input type="file" accept=".sol,.vy,.vyper,.rs,.move,text/plain" onChange={loadContractFile} />
+          </label>
+          <button
+            className="analyze-button"
+            onClick={analyzeContract}
+            disabled={loading || !source.trim()}
+            type="button"
+          >
+            {loading ? "Analyzing..." : "Analyze contract"}
+          </button>
+        </div>
+      </section>
 
-      <button
-        onClick={analyzeContract}
-        disabled={loading || !source.trim()}
-      >
-        {loading ? "Analyzing..." : "Analyze Contract"}
-      </button>
-
-      {error && <p>{error}</p>}
+      {error && <p className="error-banner">{error}</p>}
 
       {result && (
-        <section>
+        <section className="results-section">
           <div className="results-heading">
             <div>
               <p className="eyebrow">Analysis complete</p>
@@ -172,24 +226,20 @@ function App() {
             ))}
           </div>
 
-          <p className="tool-status">
-            {result.tool_runs.map((toolRun) =>
-              `${toolRun.tool}: ${toolRun.status} (${toolRun.finding_count})`,
-            ).join(" | ")}
-          </p>
+          <div className="tool-status">
+            {result.tool_runs.map((toolRun) => (
+              <span className={`tool-chip tool-${toolRun.status}`} key={toolRun.tool}>
+                {toolRun.tool} <b>{toolRun.status}</b> · {toolRun.finding_count}
+              </span>
+            ))}
+          </div>
 
           <p className="result-count">
-            Showing {result.findings.filter((finding) =>
-              severityFilter === "all" || finding.severity === severityFilter,
-            ).length} of {result.finding_count} findings
+            Showing {visibleFindings.length} of {result.finding_count} findings
           </p>
 
           <div className="findings-list">
-          {result.findings
-            .filter((finding) =>
-              severityFilter === "all" || finding.severity === severityFilter,
-            )
-            .map((finding) => (
+          {visibleFindings.map((finding) => (
             <article key={`${finding.rule_id}-${finding.line}`}>
               <div className="finding-header">
                 <h3>{finding.title}</h3>
@@ -212,6 +262,12 @@ function App() {
               <p>{finding.recommendation}</p>
             </article>
           ))}
+          {!visibleFindings.length && (
+            <div className="empty-results">
+              <strong>No findings in this view.</strong>
+              <span>Try another severity filter or analyze a different source file.</span>
+            </div>
+          )}
           </div>
         </section>
       )}
