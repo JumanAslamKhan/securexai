@@ -82,6 +82,37 @@ textarea {
   font: 14px/1.5 var(--mono);
 }
 
+.input-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.file-picker {
+  display: inline-flex;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-h);
+  background: var(--panel);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.file-picker input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.filename {
+  color: var(--text);
+  font: 13px var(--mono);
+}
+
 button,
 select {
   border: 1px solid var(--accent);

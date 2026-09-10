@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type ChangeEvent, useState } from "react";
 
 type Finding = {
   rule_id: string;
@@ -32,10 +32,20 @@ type SeverityFilter = "all" | Finding["severity"];
 
 function App() {
   const [source, setSource] = useState("");
+  const [filename, setFilename] = useState("Contract.sol");
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
+
+  async function loadContractFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setFilename(file.name);
+    setSource(await file.text());
+    setResult(null);
+    setError("");
+  }
 
   async function analyzeContract() {
     setLoading(true);
@@ -48,7 +58,7 @@ function App() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          filename: "Contract.sol",
+          filename,
           source,
         }),
       });
@@ -82,6 +92,14 @@ function App() {
         rows={16}
         cols={80}
       />
+
+      <div className="input-actions">
+        <label className="file-picker">
+          <span>Choose Solidity file</span>
+          <input type="file" accept=".sol,text/plain" onChange={loadContractFile} />
+        </label>
+        <span className="filename">{filename}</span>
+      </div>
 
       <br />
 
