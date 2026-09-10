@@ -37,6 +37,11 @@ frontend client. External analyzer integration, LLM remediation, and formal
 benchmark evaluation are planned next and should be reported as future results
 until they are measured.
 
+The analyzer request accepts `solidity`, `vyper`, `rust`, and `move`. Solidity
+currently has the complete custom detector, Semgrep rules, and Slither support.
+The other language options are routed safely and report unsupported analyzers as
+`skipped` until language-specific rules are implemented.
+
 ## Research Positioning
 
 Unlike the reviewed reentrancy-focused hybrid deep-learning study, SecureXAI

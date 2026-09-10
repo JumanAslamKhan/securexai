@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from app.models import Finding, ToolRun
+from app.models import Finding, Language, ToolRun
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SEMGREP_RULES = PROJECT_ROOT / "rules" / "semgrep" / "solidity.yml"
@@ -82,7 +82,14 @@ def _semgrep_metadata(check_id: str) -> tuple[str, str]:
     return "unchecked-call", "high"
 
 
-def run_semgrep(source: str) -> tuple[list[Finding], ToolRun]:
+def run_semgrep(filename: str, source: str, language: Language) -> tuple[list[Finding], ToolRun]:
+    if language != "solidity":
+        return [], ToolRun(
+            tool="semgrep",
+            status="skipped",
+            finding_count=0,
+            message=f"No SecureXAI Semgrep rules configured for {language} yet.",
+        )
     executable = _executable("semgrep", "SEMGREP_PATH")
     if not executable:
         return [], ToolRun(tool="semgrep", status="unavailable", finding_count=0, message="Executable not found on PATH.")
@@ -149,7 +156,14 @@ def _slither_metadata(check: str, impact: str) -> tuple[str, str]:
     return "static-analysis", "high" if impact_lower in {"high", "critical"} else "medium"
 
 
-def run_slither(source: str) -> tuple[list[Finding], ToolRun]:
+def run_slither(filename: str, source: str, language: Language) -> tuple[list[Finding], ToolRun]:
+    if language != "solidity":
+        return [], ToolRun(
+            tool="slither",
+            status="skipped",
+            finding_count=0,
+            message="Slither supports Solidity contracts only.",
+        )
     executable = _executable("slither", "SLITHER_PATH")
     if not executable:
         return [], ToolRun(tool="slither", status="unavailable", finding_count=0, message="Executable not found on PATH.")
@@ -171,7 +185,9 @@ def run_slither(source: str) -> tuple[list[Finding], ToolRun]:
     return findings, ToolRun(tool="slither", status="completed", finding_count=len(findings), message="")
 
 
-def run_external_analyzers(source: str) -> tuple[list[Finding], list[ToolRun]]:
-    semgrep_findings, semgrep_status = run_semgrep(source)
-    slither_findings, slither_status = run_slither(source)
+def run_external_analyzers(
+    filename: str, source: str, language: Language
+) -> tuple[list[Finding], list[ToolRun]]:
+    semgrep_findings, semgrep_status = run_semgrep(filename, source, language)
+    slither_findings, slither_status = run_slither(filename, source, language)
     return semgrep_findings + slither_findings, [semgrep_status, slither_status]

@@ -23,16 +23,18 @@ type AnalysisResult = {
 
 type ToolRun = {
   tool: string;
-  status: "completed" | "unavailable" | "error";
+  status: "completed" | "unavailable" | "skipped" | "error";
   finding_count: number;
   message: string;
 };
 
 type SeverityFilter = "all" | Finding["severity"];
+type Language = "solidity" | "vyper" | "rust" | "move";
 
 function App() {
   const [source, setSource] = useState("");
   const [filename, setFilename] = useState("Contract.sol");
+  const [language, setLanguage] = useState<Language>("solidity");
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -42,6 +44,11 @@ function App() {
     const file = event.target.files?.[0];
     if (!file) return;
     setFilename(file.name);
+    const extension = file.name.split(".").pop()?.toLowerCase();
+    if (extension === "vy" || extension === "vyper") setLanguage("vyper");
+    if (extension === "rs") setLanguage("rust");
+    if (extension === "move") setLanguage("move");
+    if (extension === "sol") setLanguage("solidity");
     setSource(await file.text());
     setResult(null);
     setError("");
@@ -59,6 +66,7 @@ function App() {
         },
         body: JSON.stringify({
           filename,
+          language,
           source,
         }),
       });
@@ -92,6 +100,20 @@ function App() {
         rows={16}
         cols={80}
       />
+
+      <div className="language-row">
+        <label htmlFor="language">Language</label>
+        <select
+          id="language"
+          value={language}
+          onChange={(event) => setLanguage(event.target.value as Language)}
+        >
+          <option value="solidity">Solidity</option>
+          <option value="vyper">Vyper</option>
+          <option value="rust">Rust</option>
+          <option value="move">Move</option>
+        </select>
+      </div>
 
       <div className="input-actions">
         <label className="file-picker">

@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from app.detector import analyze_source
 from app.analyzers import run_external_analyzers
 from app.normalizer import deduplicate_findings
-from app.models import AnalysisResponse
+from app.models import AnalysisResponse, Language
 
 app = FastAPI(
     title="SecureXAI API",
@@ -25,6 +25,7 @@ app.add_middleware(
 class AnalyzeRequest(BaseModel):
     filename: str = Field(default="Contract.sol", min_length=1)
     source: str = Field(min_length=1)
+    language: Language = "solidity"
 
 
 @app.get("/health")
@@ -34,12 +35,19 @@ def health() -> dict[str, str]:
 
 @app.post("/api/v1/analyze", response_model=AnalysisResponse)
 def analyze_contract(request: AnalyzeRequest) -> AnalysisResponse:
-    findings = analyze_source(request.filename, request.source)
-    external_findings, tool_runs = run_external_analyzers(request.source)
+    findings = (
+        analyze_source(request.filename, request.source)
+        if request.language == "solidity"
+        else []
+    )
+    external_findings, tool_runs = run_external_analyzers(
+        request.filename, request.source, request.language
+    )
     findings.extend(external_findings)
     findings = deduplicate_findings(findings)
     return AnalysisResponse(
         filename=request.filename,
+        language=request.language,
         finding_count=len(findings),
         findings=findings,
         tool_runs=tool_runs,

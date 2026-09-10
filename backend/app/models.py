@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 
 Severity = Literal["critical", "high", "medium", "low"]
+Language = Literal["solidity", "vyper", "rust", "move"]
 
 
 class Finding(BaseModel):
@@ -22,13 +23,14 @@ class Finding(BaseModel):
 
 class ToolRun(BaseModel):
     tool: str
-    status: Literal["completed", "unavailable", "error"]
+    status: Literal["completed", "unavailable", "skipped", "error"]
     finding_count: int
     message: str = ""
 
 
 class AnalysisResponse(BaseModel):
     filename: str
+    language: Language
     finding_count: int
     findings: list[Finding]
     tool_runs: list[ToolRun]

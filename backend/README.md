@@ -14,9 +14,10 @@ API documentation is available at `http://127.0.0.1:8000/docs`.
 
 ## External Analyzers
 
-SecureXAI runs the custom pattern detector, Semgrep, and Slither for each
-analysis request. The project-local analyzer environment is discovered
-automatically from `.tools-venv\Scripts` on Windows.
+SecureXAI runs the custom pattern detector, Semgrep, and Slither for Solidity
+analysis requests. The API also accepts Vyper, Rust, and Move source through a
+`language` field. Tools that do not support the selected language are reported
+as `skipped` rather than producing misleading results.
 
 Activate it before starting the backend when possible:
 

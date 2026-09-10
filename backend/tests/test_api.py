@@ -72,3 +72,20 @@ contract Payments {
     assert slither_findings
     assert any(finding["line"] == 6 for finding in slither_findings)
     assert {tool["tool"] for tool in payload["tool_runs"]} == {"semgrep", "slither"}
+
+
+def test_rust_analysis_routes_unsupported_tools_honestly() -> None:
+    response = client.post(
+        "/api/v1/analyze",
+        json={
+            "filename": "lib.rs",
+            "language": "rust",
+            "source": "pub fn transfer() { unsafe { /* review */ } }",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["language"] == "rust"
+    assert payload["finding_count"] == 0
+    assert {tool["status"] for tool in payload["tool_runs"]} == {"skipped"}

@@ -113,6 +113,21 @@ textarea {
   font: 13px var(--mono);
 }
 
+.language-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.language-row select {
+  color: var(--text-h);
+  background: var(--panel);
+  border-color: var(--border);
+}
+
 button,
 select {
   border: 1px solid var(--accent);
