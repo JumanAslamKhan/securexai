@@ -12,6 +12,7 @@ from app.models import (
 from app.pipelines import analyze_other_language, analyze_solidity
 from app.remediation import build_remediation
 from app.reporting import generate_report
+from app.rate_limit import RateLimitMiddleware
 
 app = FastAPI(
     title="SecureXAI API",
@@ -19,6 +20,7 @@ app = FastAPI(
     description="Multi-tool smart contract vulnerability analysis API.",
 )
 
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],

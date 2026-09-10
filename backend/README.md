@@ -32,6 +32,19 @@ uvicorn app.main:app --reload
 The API response includes `tool_runs`, showing whether each analyzer completed,
 was unavailable, or returned an error.
 
+## Rate Limiting
+
+Versioned API routes are limited to 60 requests per 60 seconds per client IP by
+default. Configure the window before starting the backend:
+
+```powershell
+$env:SECUREXAI_RATE_LIMIT = "60"
+$env:SECUREXAI_RATE_WINDOW_SECONDS = "60"
+```
+
+Limited responses return HTTP `429` with a `Retry-After` header. Health checks
+are excluded from the limit.
+
 ## Local LLM Remediation
 
 Ollama is the default provider and uses the locally installed `llama3:latest`

@@ -1,7 +1,9 @@
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.detector import analyze_source
 from app.main import app
+from app.rate_limit import RateLimitMiddleware
 
 
 client = TestClient(app)
@@ -51,6 +53,29 @@ def test_analyze_allows_frontend_preflight() -> None:
 
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+
+def test_api_rate_limit_returns_headers_and_429(monkeypatch) -> None:
+    monkeypatch.setenv("SECUREXAI_RATE_LIMIT", "2")
+    limited_app = FastAPI()
+    limited_app.add_middleware(RateLimitMiddleware)
+
+    @limited_app.post("/api/v1/test")
+    def limited_route() -> dict[str, str]:
+        return {"status": "ok"}
+
+    limited_client = TestClient(limited_app)
+
+    first = limited_client.post("/api/v1/test")
+    second = limited_client.post("/api/v1/test")
+    third = limited_client.post("/api/v1/test")
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert second.headers["x-ratelimit-limit"] == "2"
+    assert second.headers["x-ratelimit-remaining"] == "0"
+    assert third.status_code == 429
+    assert third.headers["retry-after"]
 
 
 def test_analyze_returns_line_level_reentrancy_finding() -> None:
