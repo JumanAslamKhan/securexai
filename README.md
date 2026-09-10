@@ -22,7 +22,27 @@ Build a practical system that ingests Solidity source code, analyzes it for secu
 - Reporting: benchmark summary, findings, severity, and patch recommendations
 
 ## Status
-Project scaffold created for repository setup.
+The first backend vertical slice is available. It exposes a health endpoint and
+an analysis endpoint with line-level findings for several Solidity risk patterns.
+
+## Run the Backend
+
+```powershell
+cd backend
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+Open `http://127.0.0.1:8000/docs` for the interactive API documentation.
+
+Run the tests with:
+
+```powershell
+cd backend
+pytest
+```
 
 ## Getting Started
 1. Clone the repository
