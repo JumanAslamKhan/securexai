@@ -1,5 +1,6 @@
 import re
 from collections.abc import Callable
+from dataclasses import dataclass
 
 from app.models import Finding, Severity
 
@@ -31,7 +32,7 @@ RULES: tuple[Rule, ...] = (
         0.96,
         "tx.origin can be manipulated through an intermediate contract and is unsafe for authorization.",
         "Use msg.sender and explicit role or ownership checks instead.",
-        _contains(r"\btx\.origin\b"),
+        _contains(r"\btx\.origin\b.*\b(?:require|if|assert)\b|\b(?:require|if|assert)\b.*\btx\.origin\b"),
     ),
     (
         "SEC-ARITH-001",
@@ -66,12 +67,67 @@ RULES: tuple[Rule, ...] = (
 )
 
 
+@dataclass(frozen=True)
+class FunctionContext:
+    start: int
+    end: int
+    guarded: bool
+
+
+def _function_contexts(lines: list[str]) -> list[FunctionContext]:
+    contexts: list[FunctionContext] = []
+    function_start: int | None = None
+    function_depth = 0
+    function_guarded = False
+
+    for line_number, line in enumerate(lines, start=1):
+        if function_start is None and re.search(r"\bfunction\b", line):
+            function_start = line_number
+            function_guarded = "nonReentrant" in line
+            function_depth = 0
+        if function_start is None:
+            continue
+
+        function_depth += line.count("{") - line.count("}")
+        if function_depth <= 0 and "{" in line:
+            contexts.append(
+                FunctionContext(function_start, line_number, function_guarded)
+            )
+            function_start = None
+            function_guarded = False
+
+    if function_start is not None:
+        contexts.append(FunctionContext(function_start, len(lines), function_guarded))
+    return contexts
+
+
+def _context_for_line(
+    contexts: list[FunctionContext], line_number: int
+) -> FunctionContext | None:
+    return next(
+        (context for context in contexts if context.start <= line_number <= context.end),
+        None,
+    )
+
+
+def _state_write_after(lines: list[str], line_number: int, context: FunctionContext) -> bool:
+    state_write = re.compile(r"(?:\+\+|--|\+=|-=|\*=|/=|\b(?:balances|mapping|owner)\b\s*=)")
+    return any(
+        state_write.search(lines[index - 1])
+        for index in range(line_number + 1, context.end + 1)
+    )
+
+
 def analyze_source(filename: str, source: str) -> list[Finding]:
+    del filename
+    lines = source.splitlines()
+    contexts = _function_contexts(lines)
     findings: list[Finding] = []
-    for line_number, line in enumerate(source.splitlines(), start=1):
+    for line_number, line in enumerate(lines, start=1):
         stripped = line.strip()
         if not stripped:
             continue
+        context = _context_for_line(contexts, line_number)
         for (
             rule_id,
             title,
@@ -82,6 +138,28 @@ def analyze_source(filename: str, source: str) -> list[Finding]:
             recommendation,
             matches,
         ) in RULES:
+            if not matches(stripped):
+                continue
+            if rule_id == "SEC-REENTRANCY-001":
+                if context is not None and context.guarded:
+                    continue
+                if context is not None and not _state_write_after(lines, line_number, context):
+                    confidence = 0.68
+                    explanation = (
+                        "An unguarded external call transfers control; review the function "
+                        "for state changes and checks-effects-interactions ordering."
+                    )
+            if rule_id == "SEC-ACCESS-001" and not re.search(
+                r"\b(?:require|if|assert)\b", stripped
+            ):
+                continue
+            if rule_id == "SEC-EXTERNAL-001" and re.search(
+                r"(?:require|assert)\s*\([^;]*\.(?:send|delegatecall|staticcall)\s*\(",
+                stripped,
+            ):
+                continue
+            if rule_id == "SEC-EXTERNAL-001" and ".transfer(" in stripped:
+                continue
             if matches(stripped):
                 findings.append(
                     Finding(

@@ -1,9 +1,36 @@
 from fastapi.testclient import TestClient
 
+from app.detector import analyze_source
 from app.main import app
 
 
 client = TestClient(app)
+
+
+def test_custom_detector_respects_reentrancy_guard() -> None:
+    source = """contract Guarded {
+    modifier nonReentrant() { _; }
+    function withdraw() external nonReentrant {
+        (bool ok,) = msg.sender.call{value: 1 ether}("");
+        require(ok);
+    }
+}
+"""
+
+    findings = analyze_source("Guarded.sol", source)
+    assert not any(finding.rule_id == "SEC-REENTRANCY-001" for finding in findings)
+
+
+def test_custom_detector_requires_authorization_context_for_tx_origin() -> None:
+    source = """contract ReadsOrigin {
+    function readOrigin() external view returns (address) {
+        return tx.origin;
+    }
+}
+"""
+
+    findings = analyze_source("ReadsOrigin.sol", source)
+    assert not any(finding.rule_id == "SEC-ACCESS-001" for finding in findings)
 
 
 def test_health() -> None:
