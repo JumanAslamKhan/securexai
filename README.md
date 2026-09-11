@@ -31,11 +31,11 @@ The intended outcomes are:
 - LLM-assisted remediation with visible diffs and validation before adoption
 - reproducible evaluation using precision, recall, F1-score, and ROC-AUC
 
-The current implementation provides the first working baseline: a FastAPI
-analysis endpoint, a transparent pattern detector, structured findings, and a
-frontend client. External analyzer integration, LLM remediation, and formal
-benchmark evaluation are planned next and should be reported as future results
-until they are measured.
+The current MVP provides a FastAPI analysis endpoint, a transparent pattern
+detector, Semgrep and Slither integration, structured findings, an interactive
+frontend, Ollama-assisted reports and remediation guidance, reviewed-source
+validation, and JSON/HTML exports. CodeBERT training, multi-agent analysis, and
+formal benchmark evaluation remain research extensions until they are measured.
 
 The analyzer request accepts `solidity`, `vyper`, `rust`, and `move`. Solidity
 uses the complete custom detector, Semgrep rules, and Slither support. Each
@@ -61,8 +61,10 @@ on a documented dataset with a fixed train/test protocol.
 - Reporting: benchmark summary, findings, severity, and patch recommendations
 
 ## Status
-The first backend vertical slice is available. It exposes a health endpoint and
-an analysis endpoint with line-level findings for several Solidity risk patterns.
+The MVP supports Solidity analysis with line-level findings, normalized
+cross-tool results, severity filtering, Ollama reports, remediation guidance,
+and a rescan workflow that compares original and revised source. The API also
+routes Vyper, Rust, and Move requests through separate placeholder pipelines.
 
 ## Run the Backend
 
@@ -75,6 +77,27 @@ uvicorn app.main:app --reload
 ```
 
 Open `http://127.0.0.1:8000/docs` for the interactive API documentation.
+
+## Run the Frontend
+
+In a second terminal:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Open the Vite URL shown in the terminal, usually `http://localhost:5173`.
+
+For Ollama-backed reports and remediation, start Ollama and configure the
+backend before launching it:
+
+```powershell
+$env:OPENAI_BASE_URL = "http://127.0.0.1:11434/v1"
+$env:OPENAI_MODEL = "qwen2.5-coder:7b"
+$env:OPENAI_API_KEY = "ollama"
+```
 
 Run the tests with:
 
