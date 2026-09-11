@@ -39,6 +39,13 @@ type VulnerabilityReport = {
   validation_note: string;
 };
 
+type ValidationResult = {
+  status: "improved" | "unchanged" | "regressed" | "inconclusive";
+  original_finding_count: number;
+  revised_finding_count: number;
+  message: string;
+};
+
 type Remediation = {
   provider: string;
   summary: string;
@@ -81,6 +88,9 @@ function App() {
   const [remediationLoading, setRemediationLoading] = useState("");
   const [report, setReport] = useState<VulnerabilityReport | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
+  const [analyzedSource, setAnalyzedSource] = useState("");
+  const [validation, setValidation] = useState<ValidationResult | null>(null);
+  const [validationLoading, setValidationLoading] = useState(false);
 
   async function loadContractFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -122,6 +132,8 @@ function App() {
         );
       }
       setResult(data);
+      setAnalyzedSource(source);
+      setValidation(null);
     } catch (error) {
       setError(
         error instanceof Error ? error.message : "Unknown analysis error",
@@ -167,6 +179,31 @@ function App() {
       setError(error instanceof Error ? error.message : "Report generation failed");
     } finally {
       setReportLoading(false);
+    }
+  }
+
+  async function validateRevisedSource() {
+    if (!result || !analyzedSource || !source.trim() || source === analyzedSource) return;
+    setValidationLoading(true);
+    setError("");
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/v1/validate-remediation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename,
+          language,
+          original_source: analyzedSource,
+          revised_source: source,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail ?? "Validation failed");
+      setValidation(data);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Validation failed");
+    } finally {
+      setValidationLoading(false);
     }
   }
 
@@ -386,6 +423,29 @@ function App() {
           >
             {reportLoading ? "Generating vulnerability report..." : "Generate vulnerability report"}
           </button>
+
+          <div className="validation-panel">
+            <div>
+              <p className="eyebrow">Reviewed remediation</p>
+              <strong>Rescan the edited source</strong>
+              <p>Edit the source above, then compare it with the version that produced this analysis.</p>
+            </div>
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={validateRevisedSource}
+              disabled={validationLoading || !analyzedSource || source === analyzedSource}
+            >
+              {validationLoading ? "Validating revised source..." : "Validate revised source"}
+            </button>
+            {validation && (
+              <div className={`validation-result validation-${validation.status}`}>
+                <strong>{validation.status}</strong>
+                <span>{validation.original_finding_count} findings before -&gt; {validation.revised_finding_count} after</span>
+                <small>{validation.message}</small>
+              </div>
+            )}
+          </div>
 
           {report && (
             <div className="report-panel">

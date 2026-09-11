@@ -449,6 +449,49 @@ button:disabled {
   background: var(--text-h);
 }
 
+.validation-panel {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.validation-panel p {
+  margin: 4px 0 0;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.validation-panel .ghost-button {
+  justify-self: start;
+  margin: 0;
+}
+
+.validation-result {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-bg);
+}
+
+.validation-result strong {
+  color: var(--text-h);
+  text-transform: capitalize;
+}
+
+.validation-result span,
+.validation-result small {
+  color: var(--text);
+}
+
+.validation-improved { border-left-color: #32755f; }
+.validation-regressed { border-left-color: #c94b45; }
+.validation-inconclusive { border-left-color: #b56f1d; }
+
 .report-panel {
   display: grid;
   gap: 12px;
