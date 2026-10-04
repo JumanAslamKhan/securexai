@@ -30,15 +30,6 @@ type ToolRun = {
   message: string;
 };
 
-type VulnerabilityReport = {
-  provider: string;
-  title: string;
-  executive_summary: string;
-  risk_summary: Record<string, number>;
-  recommended_actions: string[];
-  validation_note: string;
-};
-
 type ValidationResult = {
   status: "improved" | "unchanged" | "regressed" | "inconclusive";
   original_finding_count: number;
@@ -46,30 +37,16 @@ type ValidationResult = {
   message: string;
 };
 
-type Remediation = {
-  provider: string;
-  summary: string;
-  patch_guidance: string;
-  patch?: string;
-  validation_steps: string[];
-  auto_apply: boolean;
-};
-
-type RepairResult = {
+type AutoFixResult = {
   filename: string;
   provider: string;
-  status: "generated" | "rejected" | "unavailable" | "invalid";
-  fixed_source: string | null;
-  report: string;
-  compile_status: "compiled" | "error" | "unavailable";
-  compile_message: string;
-  validation_status: "improved" | "unchanged" | "regressed" | "inconclusive";
+  status: "fully-patched" | "partially-patched" | "failed";
   original_finding_count: number;
-  revised_finding_count: number;
-  original_risk_summary: Record<string, number>;
-  revised_risk_summary: Record<string, number>;
-  unresolved_findings: Finding[];
-  validation_steps: string[];
+  remaining_finding_count: number;
+  iterations: number;
+  patched_source: string;
+  diff: string;
+  message: string;
 };
 
 type SeverityFilter = "all" | Finding["severity"];
@@ -108,15 +85,11 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
-  const [remediations, setRemediations] = useState<Record<string, Remediation>>({});
-  const [remediationLoading, setRemediationLoading] = useState("");
-  const [report, setReport] = useState<VulnerabilityReport | null>(null);
-  const [reportLoading, setReportLoading] = useState(false);
   const [analyzedSource, setAnalyzedSource] = useState("");
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [validationLoading, setValidationLoading] = useState(false);
-  const [repair, setRepair] = useState<RepairResult | null>(null);
-  const [repairLoading, setRepairLoading] = useState(false);
+  const [autoFix, setAutoFix] = useState<AutoFixResult | null>(null);
+  const [autoFixLoading, setAutoFixLoading] = useState(false);
 
   async function loadContractFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -167,78 +140,6 @@ function App() {
     }
   }
 
-  async function getRemediation(finding: Finding) {
-    const key = `${finding.rule_id}-${finding.line}`;
-    setRemediationLoading(key);
-    try {
-      const response = await fetch("http://127.0.0.1:8000/api/v1/remediate", {
-        method: "POST",
-        headers: API_HEADERS,
-        body: JSON.stringify({ ...finding, source }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.detail ?? "Remediation failed");
-      setRemediations((current) => ({ ...current, [key]: data }));
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Remediation failed");
-    } finally {
-      setRemediationLoading("");
-    }
-  }
-
-  async function repairContract() {
-    if (!result) return;
-    setRepairLoading(true);
-    setError("");
-    try {
-      const response = await fetch("http://127.0.0.1:8000/api/v1/repair", {
-        method: "POST",
-        headers: API_HEADERS,
-        body: JSON.stringify({ filename, language, source, findings: result.findings }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.detail ?? "Repair generation failed");
-      setRepair(data);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Repair generation failed");
-    } finally {
-      setRepairLoading(false);
-    }
-  }
-
-  function downloadRepair(kind: "source" | "report") {
-    if (!repair) return;
-    const content = kind === "source" ? repair.fixed_source : repair.report;
-    if (!content) return;
-    const extension = kind === "source" ? "sol" : "md";
-    const blob = new Blob([content], { type: kind === "source" ? "text/plain" : "text/markdown" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `${filename.replace(/\.[^.]+$/, "")}-repaired.${extension}`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-  }
-
-  async function generateVulnerabilityReport() {
-    if (!result) return;
-    setReportLoading(true);
-    setError("");
-    try {
-      const response = await fetch("http://127.0.0.1:8000/api/v1/report", {
-        method: "POST",
-        headers: API_HEADERS,
-        body: JSON.stringify(result),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.detail ?? "Report generation failed");
-      setReport(data);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Report generation failed");
-    } finally {
-      setReportLoading(false);
-    }
-  }
-
   async function validateRevisedSource() {
     if (!result || !analyzedSource || !source.trim() || source === analyzedSource) return;
     setValidationLoading(true);
@@ -261,6 +162,26 @@ function App() {
       setError(error instanceof Error ? error.message : "Validation failed");
     } finally {
       setValidationLoading(false);
+    }
+  }
+
+  async function generateCandidateFix() {
+    if (!result) return;
+    setAutoFixLoading(true);
+    setError("");
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/v1/autofix", {
+        method: "POST",
+        headers: API_HEADERS,
+        body: JSON.stringify({ filename, language, source, max_iterations: 2 }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail ?? "Candidate generation failed");
+      setAutoFix(data);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Candidate generation failed");
+    } finally {
+      setAutoFixLoading(false);
     }
   }
 
@@ -293,32 +214,6 @@ function App() {
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = `${result.filename.replace(/\.[^.]+$/, "")}-securexai.${format}`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-  }
-
-  function downloadGeneratedReport(format: "json" | "html") {
-    if (!result || !report) return;
-    const escapeHtml = (value: string) =>
-      value.replace(/[&<>"']/g, (character) => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      })[character] ?? character);
-    const content = format === "json"
-      ? JSON.stringify({ analysis: result, vulnerability_report: report }, null, 2)
-      : `<!doctype html>
-<html><head><meta charset="utf-8"><title>${escapeHtml(report.title)}</title>
-<style>body{font:16px Arial,sans-serif;max-width:900px;margin:40px auto;color:#17202b}section{border:1px solid #dce3e1;border-radius:8px;padding:18px;margin:14px 0}.risk{display:flex;gap:18px;text-transform:capitalize}.critical{color:#c94b45}.high{color:#b56f1d}</style>
-</head><body><h1>${escapeHtml(report.title)}</h1><p><b>File:</b> ${escapeHtml(result.filename)} | <b>Provider:</b> ${escapeHtml(report.provider)}</p>
-<section><h2>Executive summary</h2><p>${escapeHtml(report.executive_summary)}</p><div class="risk">${Object.entries(report.risk_summary).map(([severity, count]) => `<span class="${escapeHtml(severity)}"><b>${escapeHtml(severity)}:</b> ${count}</span>`).join("")}</div></section>
-<section><h2>Recommended actions</h2><ul>${report.recommended_actions.map((action) => `<li>${escapeHtml(action)}</li>`).join("")}</ul><p><b>Validation:</b> ${escapeHtml(report.validation_note)}</p></section></body></html>`;
-    const blob = new Blob([content], { type: format === "json" ? "application/json" : "text/html" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `${result.filename.replace(/\.[^.]+$/, "")}-vulnerability-report.${format}`;
     link.click();
     URL.revokeObjectURL(link.href);
   }
@@ -506,39 +401,21 @@ function App() {
             ))}
           </div>
 
-          <button
-            type="button"
-            className="report-button"
-            onClick={generateVulnerabilityReport}
-            disabled={reportLoading}
-          >
-            {reportLoading ? "Generating vulnerability report..." : "Generate vulnerability report"}
-          </button>
-
-          <div className="repair-panel">
+          <div className="autofix-panel">
             <div>
-              <p className="eyebrow">AI repair layer</p>
-              <strong>Generate a repaired Solidity file</strong>
-              <p>Gemini receives the current source and findings. The result is never applied automatically.</p>
+              <p className="eyebrow">Layer 3 / Gemini candidate</p>
+              <strong>Generate a reviewable source fix</strong>
+              <p>Gemini receives the analyzed source and findings. The candidate is rescanned and never applied automatically.</p>
             </div>
-            <button type="button" className="report-button" onClick={repairContract} disabled={repairLoading}>
-              {repairLoading ? "Generating repaired contract..." : "Generate repaired contract"}
+            <button type="button" className="report-button" onClick={generateCandidateFix} disabled={autoFixLoading}>
+              {autoFixLoading ? "Generating candidate..." : "Generate candidate fix"}
             </button>
-            {repair && (
-              <div className={`repair-result repair-${repair.status}`}>
-                <p><strong>{repair.provider}</strong> · {repair.status}</p>
-                <p className={`compile-status compile-${repair.compile_status}`}>
-                  Compiler: <strong>{repair.compile_status}</strong> · {repair.compile_message}
-                </p>
-                <p className={`compile-status validation-${repair.validation_status}`}>
-                  Rescan: <strong>{repair.validation_status}</strong> · {repair.original_finding_count} findings before -&gt; {repair.revised_finding_count} after
-                </p>
-                <pre>{repair.report}</pre>
-                <div className="export-actions">
-                  <button type="button" className="ghost-button" onClick={() => downloadRepair("source")} disabled={!repair.fixed_source}>Download .sol</button>
-                  <button type="button" className="ghost-button" onClick={() => downloadRepair("report")}>Download report</button>
-                </div>
-                <ul>{repair.validation_steps.map((step) => <li key={step}>{step}</li>)}</ul>
+            {autoFix && (
+              <div className={`autofix-result autofix-${autoFix.status}`}>
+                <p><strong>{autoFix.provider}</strong> · {autoFix.status}</p>
+                <p>{autoFix.message}</p>
+                <p>{autoFix.original_finding_count} findings before · {autoFix.remaining_finding_count} after · {autoFix.iterations} iteration(s)</p>
+                <pre>{autoFix.diff || "No source changes were generated."}</pre>
               </div>
             )}
           </div>
@@ -565,32 +442,6 @@ function App() {
               </div>
             )}
           </div>
-
-          {report && (
-            <div className="report-panel">
-              <div className="report-heading">
-                <div>
-                  <p className="eyebrow">{report.provider}</p>
-                  <h3>{report.title}</h3>
-                </div>
-                <div className="risk-summary">
-                  {Object.entries(report.risk_summary).map(([severity, count]) => (
-                    <span key={severity}>{severity}: <b>{count}</b></span>
-                  ))}
-                </div>
-                <div className="export-actions report-export">
-                  <button type="button" className="ghost-button" onClick={() => downloadGeneratedReport("json")}>JSON</button>
-                  <button type="button" className="ghost-button" onClick={() => downloadGeneratedReport("html")}>HTML</button>
-                </div>
-              </div>
-              <p>{report.executive_summary}</p>
-              <strong>Recommended actions</strong>
-              <ul>
-                {report.recommended_actions.map((action) => <li key={action}>{action}</li>)}
-              </ul>
-              <small>{report.validation_note}</small>
-            </div>
-          )}
 
           <p className="result-count">
             Showing {visibleFindings.length} of {result.finding_count} findings
@@ -619,32 +470,6 @@ function App() {
               <strong>Recommendation:</strong>
               <p>{finding.recommendation}</p>
 
-              <button
-                type="button"
-                className="remediation-button"
-                onClick={() => getRemediation(finding)}
-                disabled={remediationLoading === `${finding.rule_id}-${finding.line}`}
-              >
-                {remediationLoading === `${finding.rule_id}-${finding.line}`
-                  ? "Preparing guidance..."
-                  : "Prepare remediation guidance"}
-              </button>
-
-              {remediations[`${finding.rule_id}-${finding.line}`] && (
-                <div className="remediation-panel">
-                  <p className="eyebrow">{remediations[`${finding.rule_id}-${finding.line}`].provider}</p>
-                  <strong>{remediations[`${finding.rule_id}-${finding.line}`].summary}</strong>
-                  <p>{remediations[`${finding.rule_id}-${finding.line}`].patch_guidance}</p>
-                  {remediations[`${finding.rule_id}-${finding.line}`].patch && (
-                    <pre className="patch-preview">{remediations[`${finding.rule_id}-${finding.line}`].patch}</pre>
-                  )}
-                  <ul>
-                    {remediations[`${finding.rule_id}-${finding.line}`].validation_steps.map((step) => (
-                      <li key={step}>{step}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
             </article>
           ))}
           {!visibleFindings.length && (

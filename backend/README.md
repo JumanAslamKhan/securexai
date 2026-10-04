@@ -10,14 +10,6 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-Whole-contract Gemini repair allows up to 300 seconds by default. If the
-provider is unavailable, the service returns a warning instead of a local
-fallback report.
-
-```powershell
-$env:SECUREXAI_AI_REPAIR_TIMEOUT_SECONDS = "600"
-```
-
 API documentation is available at `http://127.0.0.1:8000/docs`.
 
 ## External Analyzers
@@ -63,10 +55,25 @@ Set `SECUREXAI_ML_MODEL_PATH` to use a different artifact. If no artifact is
 available, the API reports the ML analyzer as `unavailable` and continues with
 the deterministic analyzers.
 
-After reviewing a remediation, call `POST /api/v1/validate-remediation` with
+After manually revising a source, call `POST /api/v1/validate-remediation` with
 `original_source` and `revised_source`. SecureXAI rescans both versions and
-returns `improved`, `unchanged`, `regressed`, or `inconclusive`; it never applies
-the model output automatically.
+returns `improved`, `unchanged`, `regressed`, or `inconclusive`.
+
+## Layer 3 Gemini Candidate Generation
+
+The optional `POST /api/v1/autofix` endpoint sends the current source and
+combined analyzer findings to Gemini. It retries generation and re-analysis up
+to five times, then returns a candidate source, remaining findings, tool
+statuses, and a unified diff. It never changes the submitted source or applies
+the candidate automatically.
+
+Configure Gemini before starting the backend:
+
+```powershell
+$env:GEMINI_API_KEY = "your-google-ai-studio-api-key"
+$env:GEMINI_MODEL = "gemini-3.8-flash"
+$env:GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
+```
 
 ## Rate Limiting
 
@@ -94,17 +101,6 @@ $env:SECUREXAI_API_KEY = "replace-with-a-local-secret"
 ```
 
 The frontend sends the key as `X-API-Key`; `/health` remains public.
-
-Generated Solidity repairs are compiled with the local `solc` executable before
-the response is shown. The response reports `compiled`, `error`, or
-`unavailable`; compilation does not replace human review or the analyzer rescan.
-
-## Gemini Remediation
-
-Gemini is the repair and reporting provider. Generated repairs are never
-auto-applied: they must compile and pass a server-side analyzer rescan without
-increasing critical findings or the overall normalized risk profile. Repairs
-that regress are returned as `rejected` for inspection and are not accepted.
 
 ## Test
 

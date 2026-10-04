@@ -31,11 +31,10 @@ Slither, and Mythril. Results should distinguish true positives, false
 positives, duplicates, and tool-specific detections when ground truth is
 available.
 
-### 4. Assisted remediation
+### 4. Reviewed remediation
 
-An LLM may explain a finding and propose a patch, but generated code must be
-shown as a diff and checked by compilation and security analyzers before it is
-accepted.
+Developers can revise source manually and compare the original and revised
+versions through the analyzer rescan workflow before adoption.
 
 ### 5. Reproducible evaluation
 
@@ -71,26 +70,20 @@ flowchart TD
 	D -->|Vyper, Rust, or Move| I[Return language-specific pipeline placeholder]
 	H --> J[Return findings and tool statuses]
 	I --> J
-	J --> K{Next action}
-	K -->|Remediate a finding| L[POST /api/v1/remediate]
-	L --> M[Show remediation guidance or patch]
-	M --> N[User revises source]
-	K -->|Generate report| O[POST /api/v1/report]
-	O --> P[Show vulnerability report and allow JSON or HTML download]
-	N --> Q{Source changed from analyzed version?}
-	Q -->|Yes| R[POST /api/v1/validate-remediation]
-	Q -->|No| S[Wait for source revision]
-	R --> T[Reanalyze original and revised source]
-	T --> U{Finding count and tool status}
-	U -->|Fewer findings| V[Return improved]
-	U -->|More findings| W[Return regressed]
-	U -->|Same count| X[Return unchanged]
-	U -->|Analyzer unavailable or errors| Y[Return inconclusive]
+	J --> K{Source changed from analyzed version?}
+	K -->|Yes| L[POST /api/v1/validate-remediation]
+	K -->|No| M[Wait for source revision]
+	L --> N[Reanalyze original and revised source]
+	N --> O{Finding count and tool status}
+	O -->|Fewer findings| P[Return improved]
+	O -->|More findings| Q[Return regressed]
+	O -->|Same count| R[Return unchanged]
+	O -->|Analyzer unavailable or errors| S[Return inconclusive]
 ```
 
-The current client workflow is analysis first, followed by optional
-remediation, reporting, and revised-source validation. Validation compares
-normalized finding counts and still requires human review.
+The current client workflow is analysis first, followed by manual source
+revision and revised-source validation. Validation compares normalized finding
+counts and still requires human review.
 
 ## Planned Evidence
 
@@ -101,4 +94,4 @@ The project will support its claims with:
 - tool version and configuration records
 - normalized finding and ground-truth files
 - benchmark tables and confusion matrices
-- qualitative examples showing explanations and generated patches
+- qualitative examples showing explanations and reviewed source changes

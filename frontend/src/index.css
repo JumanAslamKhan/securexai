@@ -354,99 +354,6 @@ button {
   padding-inline: 18px;
 }
 
-.remediation-button {
-  margin: 16px 0 0;
-  border-color: var(--accent-border);
-  color: var(--accent);
-  background: var(--accent-bg);
-}
-
-.remediation-panel {
-  display: grid;
-  gap: 7px;
-  margin-top: 14px;
-  padding: 14px;
-  border-left: 3px solid var(--accent);
-  background: var(--accent-bg);
-}
-
-.repair-panel {
-  display: grid;
-  gap: 12px;
-  margin: 18px 0;
-  padding: 18px;
-  border: 1px solid var(--accent-border);
-  background: #f4f8f3;
-}
-
-.repair-panel p {
-  margin: 4px 0;
-}
-
-.repair-panel .report-button {
-  justify-self: start;
-  margin: 0;
-}
-
-.repair-result {
-  display: grid;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-
-.repair-result pre {
-  max-height: 220px;
-  margin: 0;
-  padding: 12px;
-  overflow: auto;
-  white-space: pre-wrap;
-  color: var(--text-h);
-  background: var(--panel);
-  font: 13px/1.5 var(--mono);
-}
-
-.repair-generated {
-  border-left: 3px solid #3c8a72;
-  padding-left: 12px;
-}
-
-.compile-status {
-  padding: 8px 10px;
-  background: var(--panel);
-  font: 13px var(--mono);
-}
-
-.compile-compiled {
-  color: #24704f;
-}
-
-.compile-error {
-  color: #a0473d;
-}
-
-.compile-unavailable {
-  color: #93611d;
-}
-
-.repair-unavailable,
-.repair-invalid {
-  border-left: 3px solid #b56f1d;
-  padding-left: 12px;
-}
-
-.remediation-panel .eyebrow {
-  margin: 0;
-  font-size: 11px;
-}
-
-.remediation-panel ul {
-  margin: 4px 0 0;
-  padding-left: 20px;
-  color: var(--text);
-  font-size: 13px;
-}
-
 button:disabled {
   cursor: wait;
   opacity: 0.55;
@@ -624,11 +531,39 @@ button:disabled {
 .tool-skipped b { color: #8d7e18; }
 .tool-error b { color: #c94b45; }
 
-.report-button {
-  width: 100%;
-  margin: 8px 0 18px;
-  padding: 13px 16px;
-  background: var(--text-h);
+.autofix-panel {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.autofix-panel p {
+  margin: 4px 0 0;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.autofix-panel .report-button {
+  justify-self: start;
+  margin: 0;
+}
+
+.autofix-result {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-bg);
+}
+
+.autofix-result pre {
+  max-height: 360px;
+  overflow: auto;
+  white-space: pre-wrap;
 }
 
 .validation-panel {

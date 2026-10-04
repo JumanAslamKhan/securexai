@@ -7,17 +7,13 @@ from starlette.responses import JSONResponse
 
 from app.models import (
     AnalysisResponse,
+    AutoFixResponse,
     Finding,
     Language,
-    RemediationResponse,
-    RepairRequest,
-    RepairResponse,
     ValidationResponse,
-    VulnerabilityReport,
 )
+from app.codegen import run_autofix
 from app.pipelines import analyze_other_language, analyze_solidity
-from app.remediation import build_remediation, build_repair
-from app.reporting import generate_report
 from app.rate_limit import RateLimitMiddleware
 
 app = FastAPI(
@@ -73,15 +69,19 @@ class AnalyzeRequest(BaseModel):
     language: Language = "solidity"
 
 
-class RemediationRequest(Finding):
-    source: str | None = None
-
-
 class ValidationRequest(BaseModel):
     filename: str = Field(default="Contract.sol", min_length=1)
     language: Language = "solidity"
     original_source: str = Field(min_length=1, max_length=500_000)
     revised_source: str = Field(min_length=1, max_length=500_000)
+
+
+class AutoFixRequest(BaseModel):
+    filename: str = Field(default="Contract.sol", min_length=1)
+    source: str = Field(min_length=1, max_length=500_000)
+    language: Language = "solidity"
+    max_iterations: int = Field(default=2, ge=1, le=5)
+    model: str | None = None
 
 
 @app.get("/health")
@@ -109,14 +109,15 @@ def analyze_contract(request: AnalyzeRequest) -> AnalysisResponse:
     )
 
 
-@app.post("/api/v1/remediate", response_model=RemediationResponse)
-def remediate_finding(request: RemediationRequest) -> RemediationResponse:
-    return build_remediation(request, request.source)
-
-
-@app.post("/api/v1/repair", response_model=RepairResponse)
-def repair_contract(request: RepairRequest) -> RepairResponse:
-    return build_repair(request)
+@app.post("/api/v1/autofix", response_model=AutoFixResponse)
+def autofix_contract(request: AutoFixRequest) -> AutoFixResponse:
+    return run_autofix(
+        filename=request.filename,
+        language=request.language,
+        source=request.source,
+        max_iterations=request.max_iterations,
+        model=request.model,
+    )
 
 
 @app.post("/api/v1/validate-remediation", response_model=ValidationResponse)
@@ -159,8 +160,3 @@ def validate_remediation(request: ValidationRequest) -> ValidationResponse:
         tool_runs=tool_runs,
         message=message,
     )
-
-
-@app.post("/api/v1/report", response_model=VulnerabilityReport)
-def vulnerability_report(request: AnalysisResponse) -> VulnerabilityReport:
-    return generate_report(request)
