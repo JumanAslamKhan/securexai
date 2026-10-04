@@ -268,6 +268,16 @@ function App() {
     URL.revokeObjectURL(link.href);
   }
 
+  function downloadCandidateSource() {
+    if (!autoFix?.patched_source) return;
+    const blob = new Blob([autoFix.patched_source], { type: "text/plain" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${filename.replace(/\.[^.]+$/, "")}-regenerated.sol`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
   function exportFinalReport(format: "pdf" | "word") {
     if (!finalReport || !result) return;
     const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (character) => ({
@@ -498,6 +508,14 @@ function App() {
                 <p>Candidate gate: <strong>{autoFix.compile_status}</strong> · {autoFix.accepted_iterations} accepted pass(es)</p>
                 <small>{autoFix.compile_message}</small>
                 <pre>{autoFix.diff || "No source changes were generated."}</pre>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={downloadCandidateSource}
+                  disabled={!autoFix.patched_source || autoFix.status === "failed"}
+                >
+                  Download regenerated .sol
+                </button>
               </div>
             )}
           </div>
