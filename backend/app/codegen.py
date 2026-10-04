@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+import re
 from urllib import request as http_request
 from urllib.error import HTTPError
 from urllib.parse import quote
@@ -158,6 +159,14 @@ def _build_prompt(
     filename: str, language: Language, source: str, findings: list[Finding]
 ) -> list[dict]:
     findings_payload = [finding.model_dump() for finding in findings]
+    pragma_match = re.search(r"pragma\s+solidity\s+([^;]+);", source)
+    pragma_instruction = (
+        f"The original Solidity pragma is `pragma solidity {pragma_match.group(1)};`. "
+        "Preserve it exactly unless the source already uses a compatible range; do not "
+        "invent a newer compiler version. The candidate must compile with the local compiler. "
+        if pragma_match
+        else "Do not add or change a compiler pragma unless required and compatible with the local compiler. "
+    )
     system = (
         "You are the remediation engine in a security pipeline. Rewrite the entire source "
         "file and address EVERY listed finding, including findings from securexai-ml, "
@@ -165,7 +174,9 @@ def _build_prompt(
         "reentrancy requires checks-effects-interactions plus a guard where appropriate; "
         "tx.origin requires msg.sender and explicit access control; low-level calls require "
         "checked results; compiler-version findings require a safe supported pragma; ML "
-        "signals must be reconciled against the source instead of ignored. Preserve public "
+        "signals must be reconciled against the source instead of ignored. "
+        + pragma_instruction
+        + "Preserve public "
         "interfaces and business logic where possible. Do not remove functionality merely "
         "to hide a finding. Return ONLY the complete corrected source code, with no markdown "
         "fences or explanation. The source will be re-analyzed after this pass, so make a "

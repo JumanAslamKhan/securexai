@@ -212,6 +212,32 @@ def test_gemini_response_parser_reports_empty_candidates() -> None:
         raise AssertionError("An empty Gemini candidate must produce a diagnostic error")
 
 
+def test_autofix_prompt_preserves_source_pragma() -> None:
+    from app.codegen import _build_prompt
+
+    messages = _build_prompt(
+        "Vault.sol",
+        "solidity",
+        "pragma solidity ^0.8.20; contract Vault {}",
+        [
+            Finding(
+                rule_id="SEC-TEST",
+                title="Test finding",
+                category="test",
+                severity="high",
+                confidence=0.9,
+                line=1,
+                code="contract Vault {}",
+                explanation="Test",
+                recommendation="Fix it",
+            )
+        ],
+    )
+
+    assert "Preserve it exactly" in messages[0]["content"]
+    assert "^0.8.20" in messages[0]["content"]
+
+
 def test_final_report_is_available_without_gemini() -> None:
     response = client.post(
         "/api/v1/report",
