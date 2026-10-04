@@ -53,7 +53,11 @@ produced the earlier over-optimistic score.
 
 Set `SECUREXAI_ML_MODEL_PATH` to use a different artifact. If no artifact is
 available, the API reports the ML analyzer as `unavailable` and continues with
-the deterministic analyzers.
+the deterministic analyzers. Runtime reentrancy coverage uses a separate
+probability threshold of `0.30` by default because missed critical findings are
+more costly than additional review signals; configure it with
+`SECUREXAI_ML_REENTRANCY_THRESHOLD`. This operational threshold does not change
+the recorded grouped test-set metrics.
 
 After manually revising a source, call `POST /api/v1/validate-remediation` with
 `original_source` and `revised_source`. SecureXAI rescans both versions and

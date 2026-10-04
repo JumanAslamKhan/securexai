@@ -15,6 +15,7 @@ MODEL_PATH = Path(
     )
 )
 MIN_CONFIDENCE = float(os.getenv("SECUREXAI_ML_MIN_CONFIDENCE", "0.45"))
+REENTRANCY_THRESHOLD = float(os.getenv("SECUREXAI_ML_REENTRANCY_THRESHOLD", "0.30"))
 
 _MODEL: dict[str, Any] | None = None
 
@@ -87,6 +88,12 @@ def run_ml_analyzer(source: str) -> tuple[list[Finding], ToolRun]:
         best_index = int(probabilities.argmax())
         label = labels[best_index]
         confidence = float(probabilities[best_index])
+        if "Reentrancy" in labels:
+            reentrancy_index = labels.index("Reentrancy")
+            reentrancy_confidence = float(probabilities[reentrancy_index])
+            if reentrancy_confidence >= REENTRANCY_THRESHOLD:
+                label = "Reentrancy"
+                confidence = reentrancy_confidence
         if label == "safe" or confidence < MIN_CONFIDENCE:
             continue
 
