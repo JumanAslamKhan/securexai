@@ -36,6 +36,14 @@ detector, Semgrep and Slither integration, structured findings, an interactive
 frontend, reviewed-source validation, and JSON/HTML exports. CodeBERT training, multi-agent analysis, and
 formal benchmark evaluation remain research extensions until they are measured.
 
+The current grouped ML baseline is evaluated with accuracy, per-class and
+macro/weighted precision, recall and F1, balanced accuracy, MCC, ROC-AUC, and a
+confusion matrix. The primary balanced run scored 0.835 accuracy, 0.840 macro
+F1, 0.820 weighted F1, and 0.979 ROC-AUC. A separate reentrancy sensitivity
+run reached 0.950 recall and 0.724 F1 for that class, with lower overall macro
+F1, and is treated as an operational high-recall variant rather than the main
+benchmark.
+
 Layer 3, `POST /api/v1/autofix`, uses Gemini to generate a candidate from the
 combined findings, re-runs the analyzers, and returns a diff for human review.
 Layer 4, `POST /api/v1/report`, creates a deterministic final decision report

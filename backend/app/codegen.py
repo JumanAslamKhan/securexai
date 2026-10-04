@@ -218,6 +218,16 @@ def build_diff(original: str, patched: str, filename: str) -> str:
     )
 
 
+def _risk_score(findings: list[Finding]) -> tuple[int, int, int, int]:
+    weights = {"critical": 4, "high": 3, "medium": 2, "low": 1}
+    return (
+        sum(weights[finding.severity] for finding in findings),
+        sum(finding.severity == "critical" for finding in findings),
+        sum(finding.severity == "high" for finding in findings),
+        len(findings),
+    )
+
+
 def run_autofix(
     filename: str,
     language: Language,
@@ -276,7 +286,10 @@ def run_autofix(
             tool_runs = best_tools
             continue
         candidate_findings, candidate_tools, _ = analyze_fn(candidate)
-        if len(candidate_findings) <= len(best_findings):
+        analyzers_complete = not any(
+            tool.status in {"error", "unavailable"} for tool in candidate_tools
+        )
+        if analyzers_complete and _risk_score(candidate_findings) < _risk_score(best_findings):
             best_source = candidate
             best_findings = candidate_findings
             best_tools = candidate_tools

@@ -194,6 +194,37 @@ def test_autofix_reanalyzes_gemini_candidate(monkeypatch) -> None:
     assert payload["accepted_iterations"] == 1
 
 
+def test_autofix_does_not_accept_equal_risk_candidate(monkeypatch) -> None:
+    finding = Finding(
+        rule_id="SEC-TEST",
+        title="Test finding",
+        category="test",
+        severity="high",
+        confidence=0.9,
+        line=1,
+        code="risk",
+        explanation="Test",
+        recommendation="Review",
+    )
+    monkeypatch.setattr(
+        "app.codegen.analyze_solidity",
+        lambda source, filename: (
+            [finding],
+            [ToolRun(tool="test-analyzer", status="completed", finding_count=1)],
+            "solidity-security",
+        ),
+    )
+    monkeypatch.setattr("app.codegen._chat_completion", lambda messages, model: "contract Candidate {}")
+    response = client.post(
+        "/api/v1/autofix",
+        json={"filename": "Vault.sol", "source": "contract Vault {}", "max_iterations": 1},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["accepted_iterations"] == 0
+    assert response.json()["status"] == "failed"
+
+
 def test_autofix_upgrades_retired_gemini_model(monkeypatch) -> None:
     monkeypatch.setenv("GEMINI_MODEL", "gemini-2.5-flash")
     from app.codegen import _configured_model

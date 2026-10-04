@@ -51,6 +51,14 @@ grouped 80/20 split: vulnerable/fixed JSONL pairs stay together, and CSV rows
 with the same filename stay together. This avoids the row-level leakage that
 produced the earlier over-optimistic score.
 
+Training now writes `artifacts/securexai_ml.metrics.json` with accuracy, macro
+and weighted precision/recall/F1, balanced accuracy, Matthews correlation,
+one-vs-rest ROC-AUC, per-class metrics, and the confusion matrix. The primary
+balanced run measured 0.835 accuracy, 0.840 macro F1, 0.820 weighted F1, and
+0.979 ROC-AUC on 11,048 grouped test examples. A separate sensitivity run with
+`--reentrancy-weight 1.5` measured 0.950 reentrancy recall and 0.724 reentrancy
+F1, but reduced overall macro F1 to 0.806; it is not the primary artifact.
+
 Set `SECUREXAI_ML_MODEL_PATH` to use a different artifact. If no artifact is
 available, the API reports the ML analyzer as `unavailable` and continues with
 the deterministic analyzers. Runtime reentrancy coverage uses a separate
