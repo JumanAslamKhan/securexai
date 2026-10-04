@@ -63,13 +63,23 @@ def build_final_report(
     revised_findings: list[Finding] | None = None,
     regeneration_status: str = "not-run",
 ) -> FinalReport:
+    original_findings = analysis.findings
+    remaining_findings = revised_findings if revised_findings is not None else original_findings
+    remaining_keys = {
+        (finding.rule_id, finding.category, finding.title)
+        for finding in remaining_findings
+    }
+    resolved_findings = [
+        finding for finding in original_findings
+        if (finding.rule_id, finding.category, finding.title) not in remaining_keys
+    ]
     risk_summary = {
-        severity: sum(finding.severity == severity for finding in analysis.findings)
+        severity: sum(finding.severity == severity for finding in original_findings)
         for severity in ("critical", "high", "medium", "low")
     }
     recommended_actions = [
         finding.recommendation
-        for finding in analysis.findings
+        for finding in original_findings
         if finding.recommendation
     ]
     if not recommended_actions:
@@ -91,13 +101,19 @@ def build_final_report(
     else:
         executive_summary = f"No normalized findings were reported for {analysis.filename}."
 
-    manual_review_findings = revised_findings if revised_findings is not None else analysis.findings
+    manual_review_findings = remaining_findings
     detailed_report = _gemini_detail(analysis, original_source, revised_source)
     if not detailed_report:
         detailed_report = (
             f"## Examined vulnerabilities\n\n{executive_summary}\n\n"
-            f"## Manual review required\n\n{len(manual_review_findings)} finding(s) remain after regeneration. "
-            "Review every listed finding and analyzer evidence before accepting changes."
+            f"## Resolved findings\n\n{len(resolved_findings)} finding(s) were no longer reported after regeneration.\n\n"
+            f"## Manual review required\n\n{len(manual_review_findings)} finding(s) remain after regeneration.\n\n"
+            + "\n".join(
+                f"- **{finding.severity}** {finding.title} (line {finding.line}); "
+                f"detected by {', '.join(finding.source_tools)}. {finding.recommendation}"
+                for finding in manual_review_findings
+            )
+            + "\n\nReview every listed finding and analyzer evidence before accepting changes."
         )
     return FinalReport(
         filename=analysis.filename,
@@ -110,7 +126,8 @@ def build_final_report(
         finding_count=analysis.finding_count,
         tool_runs=analysis.tool_runs,
         detailed_report=detailed_report,
-        findings=analysis.findings,
+        findings=original_findings,
+        resolved_findings=resolved_findings,
         manual_review_findings=manual_review_findings,
         manual_review_required=bool(manual_review_findings) or regeneration_status != "fully-patched",
         regeneration_status=regeneration_status,

@@ -64,7 +64,10 @@ type FinalReport = {
   finding_count: number;
   detailed_report: string;
   findings: Finding[];
+  resolved_findings: Finding[];
   manual_review_findings: Finding[];
+    <h2>Resolved findings</h2><ul>${finalReport.resolved_findings.map((finding) => `<li><b>${escapeHtml(finding.severity)}</b> - ${escapeHtml(finding.title)} - ${escapeHtml(finding.recommendation)}</li>`).join("") || "<li>None confirmed.</li>"}</ul>
+    <h2>Manual review</h2><ul>${finalReport.manual_review_findings.map((finding) => `<li><b>${escapeHtml(finding.severity)}</b> - ${escapeHtml(finding.title)} - line ${finding.line} - ${escapeHtml(finding.source_tools.join(", "))}<br>${escapeHtml(finding.explanation)}<br>${escapeHtml(finding.recommendation)}</li>`).join("") || "<li>No unresolved findings.</li>"}</ul></body></html>`;
   manual_review_required: boolean;
   regeneration_status: string;
 };
@@ -550,6 +553,20 @@ function App() {
                   <strong>All examined findings</strong>
                   <ul>{finalReport.findings.map((finding) => <li key={`${finding.rule_id}-${finding.line}`}>
                     <b>{finding.severity}</b> · {finding.title} · line {finding.line} · {finding.source_tools.join(", ")}
+                  </li>)}</ul>
+                </div>
+                <div className="report-findings report-resolved">
+                  <strong>Resolved by regeneration</strong>
+                  {finalReport.resolved_findings.length ? (
+                    <ul>{finalReport.resolved_findings.map((finding) => <li key={`${finding.rule_id}-${finding.line}`}>
+                      <b>{finding.severity}</b> · {finding.title} · original line {finding.line}
+                    </li>)}</ul>
+                  ) : <p>No findings were confirmed resolved.</p>}
+                </div>
+                <div className="report-findings report-manual-review">
+                  <strong>Remaining manual review findings</strong>
+                  <ul>{finalReport.manual_review_findings.map((finding) => <li key={`${finding.rule_id}-${finding.line}`}>
+                    <b>{finding.severity}</b> · {finding.title} · line {finding.line} · {finding.source_tools.join(", ")}<br />{finding.explanation}<br /><em>{finding.recommendation}</em>
                   </li>)}</ul>
                 </div>
                 <ul>{finalReport.recommended_actions.map((action) => <li key={action}>{action}</li>)}</ul>

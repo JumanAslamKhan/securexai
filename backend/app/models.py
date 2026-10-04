@@ -80,6 +80,7 @@ class FinalReport(BaseModel):
     tool_runs: list[ToolRun]
     detailed_report: str = ""
     findings: list[Finding] = []
+    resolved_findings: list[Finding] = []
     manual_review_findings: list[Finding] = []
     manual_review_required: bool = True
     regeneration_status: str = "not-run"

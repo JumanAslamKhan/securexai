@@ -280,6 +280,57 @@ def test_detailed_final_report_accepts_source_comparison(monkeypatch) -> None:
     assert "Manual review required" in response.json()["detailed_report"]
 
 
+def test_final_report_lists_resolved_and_remaining_findings() -> None:
+    original = Finding(
+        rule_id="SEC-REENTRANCY-001",
+        title="Reentrancy",
+        category="reentrancy",
+        severity="critical",
+        confidence=0.9,
+        line=9,
+        code="call",
+        explanation="External call before state update.",
+        recommendation="Apply checks-effects-interactions.",
+        source_tools=["securexai-pattern-detector", "slither"],
+    )
+    remaining = Finding(
+        rule_id="SEC-ACCESS-001",
+        title="tx.origin used for authorization",
+        category="access-control",
+        severity="high",
+        confidence=0.9,
+        line=15,
+        code="tx.origin",
+        explanation="tx.origin is unsafe for authorization.",
+        recommendation="Use msg.sender.",
+        source_tools=["semgrep"],
+    )
+    response = client.post(
+        "/api/v1/final-report",
+        json={
+            "analysis": {
+                "filename": "Vault.sol",
+                "language": "solidity",
+                "pipeline": "solidity-security",
+                "finding_count": 2,
+                "findings": [original.model_dump(), remaining.model_dump()],
+                "tool_runs": [],
+            },
+            "revised_findings": [remaining.model_dump()],
+            "regeneration_status": "partially-patched",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert [finding["rule_id"] for finding in payload["resolved_findings"]] == [
+        "SEC-REENTRANCY-001"
+    ]
+    assert [finding["rule_id"] for finding in payload["manual_review_findings"]] == [
+        "SEC-ACCESS-001"
+    ]
+
+
 def test_analyze_returns_line_level_reentrancy_finding() -> None:
     source = """contract Vault {\n    function withdraw() external {\n        (bool ok,) = msg.sender.call{value: 1 ether}(\"\");\n        require(ok);\n    }\n}\n"""
 
