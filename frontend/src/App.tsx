@@ -58,6 +58,7 @@ type FinalReport = {
   recommended_actions: string[];
   validation_note: string;
   finding_count: number;
+  detailed_report: string;
 };
 
 type SeverityFilter = "all" | Finding["severity"];
@@ -160,10 +161,14 @@ function App() {
     setReportLoading(true);
     setError("");
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/v1/report", {
+      const response = await fetch("http://127.0.0.1:8000/api/v1/final-report", {
         method: "POST",
         headers: API_HEADERS,
-        body: JSON.stringify(result),
+        body: JSON.stringify({
+          analysis: result,
+          original_source: analyzedSource || source,
+          revised_source: autoFix?.patched_source || source,
+        }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail ?? "Final report failed");
@@ -249,6 +254,37 @@ function App() {
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = `${result.filename.replace(/\.[^.]+$/, "")}-securexai.${format}`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
+  function exportFinalReport(format: "pdf" | "word") {
+    if (!finalReport || !result) return;
+    const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (character) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    })[character] ?? character);
+    const riskBars = Object.entries(finalReport.risk_summary).map(([severity, count]) =>
+      `<div class="risk-row"><span>${escapeHtml(severity)}</span><div class="bar"><i class="bar-${escapeHtml(severity)}" style="width:${Math.min(100, count * 20)}%"></i></div><b>${count}</b></div>`
+    ).join("");
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(finalReport.title)}</title>
+      <style>body{font:14px Arial,sans-serif;max-width:900px;margin:36px auto;color:#17202b}h1{font-size:28px}h2{margin-top:28px;border-bottom:1px solid #dce3e1;padding-bottom:6px}.meta{color:#0e7770}.risk-row{display:flex;align-items:center;gap:10px;margin:8px 0}.risk-row span{width:80px;text-transform:capitalize}.bar{width:300px;height:12px;background:#eef3f1}.bar i{display:block;height:100%;background:#0e7770}.bar-critical{background:#c94b45!important}.bar-high{background:#d68b2c!important}.bar-medium{background:#b7a331!important}.bar-low{background:#3c8a72!important}pre{white-space:pre-wrap;background:#f3f6f4;padding:14px;border:1px solid #dce3e1;overflow:auto}.comparison{display:grid;grid-template-columns:1fr 1fr;gap:16px}</style></head><body>
+      <h1>${escapeHtml(finalReport.title)}</h1><p class="meta">Provider: ${escapeHtml(finalReport.provider)} | Findings: ${finalReport.finding_count}</p>
+      <h2>Executive summary</h2><p>${escapeHtml(finalReport.executive_summary)}</p><h2>Risk visual</h2>${riskBars}<h2>Detailed Gemini assessment</h2><pre>${escapeHtml(finalReport.detailed_report)}</pre>
+      <h2>Vulnerable versus regenerated source</h2><div class="comparison"><div><h3>Vulnerable source</h3><pre>${escapeHtml(analyzedSource || source)}</pre></div><div><h3>Regenerated source</h3><pre>${escapeHtml(autoFix?.patched_source || source)}</pre></div></div>
+      <h2>Recommended actions</h2><ul>${finalReport.recommended_actions.map((action) => `<li>${escapeHtml(action)}</li>`).join("")}</ul><p>${escapeHtml(finalReport.validation_note)}</p></body></html>`;
+    if (format === "pdf") {
+      const printWindow = window.open("", "_blank");
+      if (!printWindow) return;
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      return;
+    }
+    const blob = new Blob([html], { type: "application/msword" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${filename.replace(/\.[^.]+$/, "")}-securexai-final-report.doc`;
     link.click();
     URL.revokeObjectURL(link.href);
   }
@@ -473,6 +509,10 @@ function App() {
                 </div>
                 <ul>{finalReport.recommended_actions.map((action) => <li key={action}>{action}</li>)}</ul>
                 <small>{finalReport.validation_note}</small>
+                <div className="export-actions">
+                  <button type="button" className="ghost-button" onClick={() => exportFinalReport("pdf")}>Print / PDF</button>
+                  <button type="button" className="ghost-button" onClick={() => exportFinalReport("word")}>Download Word</button>
+                </div>
               </div>
             )}
           </div>

@@ -42,6 +42,11 @@ Layer 4, `POST /api/v1/report`, creates a deterministic final decision report
 from the normalized analysis. Neither endpoint applies generated source
 automatically.
 
+The final report workflow also exposes `POST /api/v1/final-report`, which sends
+the vulnerable and regenerated source to Gemini for a detailed comparison when
+configured. The frontend exports the resulting report through print-to-PDF and
+Word-compatible download actions.
+
 The analyzer request accepts `solidity`, `vyper`, `rust`, and `move`. Solidity
 uses the complete custom detector, Semgrep rules, and Slither support. Each
 other language enters its own backend pipeline and bypasses the Solidity

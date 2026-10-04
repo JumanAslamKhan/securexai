@@ -219,6 +219,28 @@ def test_final_report_is_available_without_gemini() -> None:
     assert payload["finding_count"] == 0
 
 
+def test_detailed_final_report_accepts_source_comparison(monkeypatch) -> None:
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    response = client.post(
+        "/api/v1/final-report",
+        json={
+            "analysis": {
+                "filename": "Vault.sol",
+                "language": "solidity",
+                "pipeline": "solidity-security",
+                "finding_count": 0,
+                "findings": [],
+                "tool_runs": [],
+            },
+            "original_source": "contract Vulnerable {}",
+            "revised_source": "contract Repaired {}",
+        },
+    )
+
+    assert response.status_code == 200
+    assert "Regeneration comparison" in response.json()["detailed_report"]
+
+
 def test_analyze_returns_line_level_reentrancy_finding() -> None:
     source = """contract Vault {\n    function withdraw() external {\n        (bool ok,) = msg.sender.call{value: 1 ether}(\"\");\n        require(ok);\n    }\n}\n"""
 

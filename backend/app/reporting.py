@@ -1,9 +1,66 @@
-"""Layer 4: deterministic final reporting from normalized analyzer results."""
+"""Layer 4: final reporting from normalized results and optional Gemini detail."""
+
+from __future__ import annotations
+
+import json
+import os
+from urllib import request as http_request
+from urllib.error import HTTPError
+from urllib.parse import quote
 
 from app.models import AnalysisResponse, FinalReport
 
 
-def build_final_report(analysis: AnalysisResponse) -> FinalReport:
+def _gemini_detail(analysis: AnalysisResponse, original_source: str, revised_source: str) -> str | None:
+    api_key = os.getenv("GEMINI_API_KEY", "")
+    if not api_key:
+        return None
+    model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+    base_url = os.getenv(
+        "GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta"
+    ).rstrip("/")
+    if base_url.endswith("/openai"):
+        base_url = base_url[:-len("/openai")]
+    endpoint = f"{base_url}/models/{quote(model, safe='')}:generateContent?key={quote(api_key)}"
+    prompt = {
+        "filename": analysis.filename,
+        "pipeline": analysis.pipeline,
+        "findings": [finding.model_dump() for finding in analysis.findings],
+        "original_vulnerable_source": original_source,
+        "regenerated_source": revised_source,
+    }
+    system = (
+        "You are the final smart-contract security report reviewer. Return a detailed Markdown report. "
+        "Explain each examined vulnerability with severity, evidence, affected line, and remediation. "
+        "Compare the vulnerable source with the regenerated source, identify what changed and what remains, "
+        "and clearly state that generated code requires human review. Do not invent findings."
+    )
+    body = {
+        "systemInstruction": {"parts": [{"text": system}]},
+        "contents": [{"role": "user", "parts": [{"text": json.dumps(prompt)}]}],
+        "generationConfig": {"temperature": 0.1},
+    }
+    request = http_request.Request(
+        endpoint,
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with http_request.urlopen(request, timeout=90) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        parts = payload["candidates"][0]["content"]["parts"]
+        detail = "".join(part["text"] for part in parts if isinstance(part, dict))
+        return detail.strip() or None
+    except (HTTPError, OSError, KeyError, IndexError, TypeError, json.JSONDecodeError):
+        return None
+
+
+def build_final_report(
+    analysis: AnalysisResponse,
+    original_source: str = "",
+    revised_source: str = "",
+) -> FinalReport:
     risk_summary = {
         severity: sum(finding.severity == severity for finding in analysis.findings)
         for severity in ("critical", "high", "medium", "low")
@@ -32,6 +89,14 @@ def build_final_report(analysis: AnalysisResponse) -> FinalReport:
     else:
         executive_summary = f"No normalized findings were reported for {analysis.filename}."
 
+    detailed_report = _gemini_detail(analysis, original_source, revised_source)
+    if not detailed_report:
+        detailed_report = (
+            f"## Examined vulnerabilities\n\n{executive_summary}\n\n"
+            "## Regeneration comparison\n\n"
+            "The regenerated source was not available for Gemini review. "
+            "Use the analyzer findings and manual rescan before accepting changes."
+        )
     return FinalReport(
         filename=analysis.filename,
         provider="securexai-final-report",
@@ -42,4 +107,5 @@ def build_final_report(analysis: AnalysisResponse) -> FinalReport:
         validation_note=validation_note,
         finding_count=analysis.finding_count,
         tool_runs=analysis.tool_runs,
+        detailed_report=detailed_report,
     )

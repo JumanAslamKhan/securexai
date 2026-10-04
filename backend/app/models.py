@@ -75,5 +75,6 @@ class FinalReport(BaseModel):
     validation_note: str
     finding_count: int
     tool_runs: list[ToolRun]
+    detailed_report: str = ""
 
 

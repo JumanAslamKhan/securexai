@@ -82,6 +82,12 @@ report containing the risk summary, deduplicated recommendations, analyzer
 completeness, and a deployment-review note. It does not call Gemini, so report
 generation remains available when the AI provider is unavailable.
 
+`POST /api/v1/final-report` accepts the analysis plus `original_source` and
+`revised_source`. When Gemini is configured, it adds a detailed Markdown
+assessment comparing the vulnerable and regenerated source. Without Gemini it
+returns a local assessment instead. The frontend can print this report to PDF
+or download it as a Word-compatible document.
+
 ## Rate Limiting
 
 Versioned API routes are limited to 60 requests per 60 seconds per client IP by

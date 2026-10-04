@@ -86,6 +86,12 @@ class AutoFixRequest(BaseModel):
     model: str | None = None
 
 
+class FinalReportRequest(BaseModel):
+    analysis: AnalysisResponse
+    original_source: str = Field(default="", max_length=500_000)
+    revised_source: str = Field(default="", max_length=500_000)
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": "securexai-api"}
@@ -125,6 +131,15 @@ def autofix_contract(request: AutoFixRequest) -> AutoFixResponse:
 @app.post("/api/v1/report", response_model=FinalReport)
 def final_report(request: AnalysisResponse) -> FinalReport:
     return build_final_report(request)
+
+
+@app.post("/api/v1/final-report", response_model=FinalReport)
+def detailed_final_report(request: FinalReportRequest) -> FinalReport:
+    return build_final_report(
+        request.analysis,
+        original_source=request.original_source,
+        revised_source=request.revised_source,
+    )
 
 
 @app.post("/api/v1/validate-remediation", response_model=ValidationResponse)
