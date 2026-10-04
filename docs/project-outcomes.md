@@ -57,6 +57,41 @@ The repository currently implements:
 These are implementation outcomes, not final research results. Numerical
 performance claims should be added only after dataset-based experiments.
 
+## Current Workflow
+
+```mermaid
+flowchart TD
+	A[User loads or edits contract source] --> B[Select filename and language]
+	B --> C[POST /api/v1/analyze]
+	C --> D{Language?}
+	D -->|Solidity| E[Run transparent pattern detector]
+	E --> F[Run Semgrep and Slither]
+	F --> G[Run trained ML classifier]
+	G --> H[Merge and deduplicate findings]
+	D -->|Vyper, Rust, or Move| I[Return language-specific pipeline placeholder]
+	H --> J[Return findings and tool statuses]
+	I --> J
+	J --> K{Next action}
+	K -->|Remediate a finding| L[POST /api/v1/remediate]
+	L --> M[Show remediation guidance or patch]
+	M --> N[User revises source]
+	K -->|Generate report| O[POST /api/v1/report]
+	O --> P[Show vulnerability report and allow JSON or HTML download]
+	N --> Q{Source changed from analyzed version?}
+	Q -->|Yes| R[POST /api/v1/validate-remediation]
+	Q -->|No| S[Wait for source revision]
+	R --> T[Reanalyze original and revised source]
+	T --> U{Finding count and tool status}
+	U -->|Fewer findings| V[Return improved]
+	U -->|More findings| W[Return regressed]
+	U -->|Same count| X[Return unchanged]
+	U -->|Analyzer unavailable or errors| Y[Return inconclusive]
+```
+
+The current client workflow is analysis first, followed by optional
+remediation, reporting, and revised-source validation. Validation compares
+normalized finding counts and still requires human review.
+
 ## Planned Evidence
 
 The project will support its claims with:

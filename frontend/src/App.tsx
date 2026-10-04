@@ -55,8 +55,32 @@ type Remediation = {
   auto_apply: boolean;
 };
 
+type RepairResult = {
+  filename: string;
+  provider: string;
+  status: "generated" | "rejected" | "unavailable" | "invalid";
+  fixed_source: string | null;
+  report: string;
+  compile_status: "compiled" | "error" | "unavailable";
+  compile_message: string;
+  validation_status: "improved" | "unchanged" | "regressed" | "inconclusive";
+  original_finding_count: number;
+  revised_finding_count: number;
+  original_risk_summary: Record<string, number>;
+  revised_risk_summary: Record<string, number>;
+  unresolved_findings: Finding[];
+  validation_steps: string[];
+};
+
 type SeverityFilter = "all" | Finding["severity"];
 type Language = "solidity" | "vyper" | "rust" | "move";
+
+const API_HEADERS = {
+  "Content-Type": "application/json",
+  ...(import.meta.env.VITE_SECUREXAI_API_KEY
+    ? { "X-API-Key": import.meta.env.VITE_SECUREXAI_API_KEY }
+    : {}),
+};
 
 const sampleContract = `// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
@@ -91,6 +115,8 @@ function App() {
   const [analyzedSource, setAnalyzedSource] = useState("");
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [validationLoading, setValidationLoading] = useState(false);
+  const [repair, setRepair] = useState<RepairResult | null>(null);
+  const [repairLoading, setRepairLoading] = useState(false);
 
   async function loadContractFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -113,9 +139,7 @@ function App() {
     try {
       const response = await fetch("http://127.0.0.1:8000/api/v1/analyze", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: API_HEADERS,
         body: JSON.stringify({
           filename,
           language,
@@ -149,7 +173,7 @@ function App() {
     try {
       const response = await fetch("http://127.0.0.1:8000/api/v1/remediate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: API_HEADERS,
         body: JSON.stringify({ ...finding, source }),
       });
       const data = await response.json();
@@ -162,6 +186,39 @@ function App() {
     }
   }
 
+  async function repairContract() {
+    if (!result) return;
+    setRepairLoading(true);
+    setError("");
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/v1/repair", {
+        method: "POST",
+        headers: API_HEADERS,
+        body: JSON.stringify({ filename, language, source, findings: result.findings }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail ?? "Repair generation failed");
+      setRepair(data);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Repair generation failed");
+    } finally {
+      setRepairLoading(false);
+    }
+  }
+
+  function downloadRepair(kind: "source" | "report") {
+    if (!repair) return;
+    const content = kind === "source" ? repair.fixed_source : repair.report;
+    if (!content) return;
+    const extension = kind === "source" ? "sol" : "md";
+    const blob = new Blob([content], { type: kind === "source" ? "text/plain" : "text/markdown" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${filename.replace(/\.[^.]+$/, "")}-repaired.${extension}`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
   async function generateVulnerabilityReport() {
     if (!result) return;
     setReportLoading(true);
@@ -169,7 +226,7 @@ function App() {
     try {
       const response = await fetch("http://127.0.0.1:8000/api/v1/report", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: API_HEADERS,
         body: JSON.stringify(result),
       });
       const data = await response.json();
@@ -189,7 +246,7 @@ function App() {
     try {
       const response = await fetch("http://127.0.0.1:8000/api/v1/validate-remediation", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: API_HEADERS,
         body: JSON.stringify({
           filename,
           language,
@@ -285,6 +342,40 @@ function App() {
           Local analysis
         </div>
       </header>
+
+      <section className="workflow-panel" aria-labelledby="workflow-title">
+        <div className="workflow-heading">
+          <div>
+            <p className="eyebrow">Current workflow</p>
+            <h2 id="workflow-title">From source to decision</h2>
+          </div>
+          <span className="workflow-status">4 API paths</span>
+        </div>
+        <div className="workflow-tree">
+          <div className="workflow-node workflow-node-primary">1. Load or edit source</div>
+          <div className="workflow-connector" aria-hidden="true" />
+          <div className="workflow-node workflow-node-primary">2. Analyze contract</div>
+          <div className="workflow-connector" aria-hidden="true" />
+          <div className="workflow-branches">
+            <div className="workflow-branch">
+              <span className="workflow-branch-label">Solidity</span>
+              <div className="workflow-node">Pattern detector + external analyzers</div>
+              <div className="workflow-node">Merge and deduplicate findings</div>
+            </div>
+            <div className="workflow-branch">
+              <span className="workflow-branch-label">Other supported languages</span>
+              <div className="workflow-node">Language-specific pipeline placeholder</div>
+            </div>
+          </div>
+          <div className="workflow-connector" aria-hidden="true" />
+          <div className="workflow-node workflow-node-primary">3. Review findings and tool status</div>
+          <div className="workflow-outcomes">
+            <div><strong>Remediate</strong><span>Guidance or patch</span></div>
+            <div><strong>Report</strong><span>JSON or HTML export</span></div>
+            <div><strong>Validate</strong><span>Improved, unchanged, regressed, or inconclusive</span></div>
+          </div>
+        </div>
+      </section>
 
       <section className="editor-panel">
         <div className="section-heading">
@@ -423,6 +514,34 @@ function App() {
           >
             {reportLoading ? "Generating vulnerability report..." : "Generate vulnerability report"}
           </button>
+
+          <div className="repair-panel">
+            <div>
+              <p className="eyebrow">AI repair layer</p>
+              <strong>Generate a repaired Solidity file</strong>
+              <p>Gemini receives the current source and findings. The result is never applied automatically.</p>
+            </div>
+            <button type="button" className="report-button" onClick={repairContract} disabled={repairLoading}>
+              {repairLoading ? "Generating repaired contract..." : "Generate repaired contract"}
+            </button>
+            {repair && (
+              <div className={`repair-result repair-${repair.status}`}>
+                <p><strong>{repair.provider}</strong> · {repair.status}</p>
+                <p className={`compile-status compile-${repair.compile_status}`}>
+                  Compiler: <strong>{repair.compile_status}</strong> · {repair.compile_message}
+                </p>
+                <p className={`compile-status validation-${repair.validation_status}`}>
+                  Rescan: <strong>{repair.validation_status}</strong> · {repair.original_finding_count} findings before -&gt; {repair.revised_finding_count} after
+                </p>
+                <pre>{repair.report}</pre>
+                <div className="export-actions">
+                  <button type="button" className="ghost-button" onClick={() => downloadRepair("source")} disabled={!repair.fixed_source}>Download .sol</button>
+                  <button type="button" className="ghost-button" onClick={() => downloadRepair("report")}>Download report</button>
+                </div>
+                <ul>{repair.validation_steps.map((step) => <li key={step}>{step}</li>)}</ul>
+              </div>
+            )}
+          </div>
 
           <div className="validation-panel">
             <div>

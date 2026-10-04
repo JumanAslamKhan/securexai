@@ -33,7 +33,7 @@ The intended outcomes are:
 
 The current MVP provides a FastAPI analysis endpoint, a transparent pattern
 detector, Semgrep and Slither integration, structured findings, an interactive
-frontend, Ollama-assisted reports and remediation guidance, reviewed-source
+frontend, Gemini-assisted reports and remediation guidance, reviewed-source
 validation, and JSON/HTML exports. CodeBERT training, multi-agent analysis, and
 formal benchmark evaluation remain research extensions until they are measured.
 
@@ -62,7 +62,7 @@ on a documented dataset with a fixed train/test protocol.
 
 ## Status
 The MVP supports Solidity analysis with line-level findings, normalized
-cross-tool results, severity filtering, Ollama reports, remediation guidance,
+cross-tool results, severity filtering, Gemini reports, remediation guidance,
 and a rescan workflow that compares original and revised source. The API also
 routes Vyper, Rust, and Move requests through separate placeholder pipelines.
 
@@ -90,13 +90,13 @@ npm run dev
 
 Open the Vite URL shown in the terminal, usually `http://localhost:5173`.
 
-For Ollama-backed reports and remediation, start Ollama and configure the
-backend before launching it:
+For Gemini-backed reports and remediation, configure the backend before
+launching it:
 
 ```powershell
-$env:OPENAI_BASE_URL = "http://127.0.0.1:11434/v1"
-$env:OPENAI_MODEL = "qwen2.5-coder:7b"
-$env:OPENAI_API_KEY = "ollama"
+$env:OPENAI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
+$env:OPENAI_MODEL = "gemini-2.5-flash"
+$env:OPENAI_API_KEY = "your-gemini-api-key"
 ```
 
 Run the tests with:

@@ -31,3 +31,4 @@ uploads/
 output/
 results/
 *.zip
+backend/artifacts/

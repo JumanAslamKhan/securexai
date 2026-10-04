@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 Severity = Literal["critical", "high", "medium", "low"]
@@ -11,15 +11,15 @@ PipelineName = Literal[
 
 
 class Finding(BaseModel):
-    rule_id: str
-    title: str
-    category: str
+    rule_id: str = Field(max_length=200)
+    title: str = Field(max_length=500)
+    category: str = Field(max_length=200)
     severity: Severity
     confidence: float
     line: int
-    code: str
-    explanation: str
-    recommendation: str
+    code: str = Field(max_length=20_000)
+    explanation: str = Field(max_length=5_000)
+    recommendation: str = Field(max_length=5_000)
     source_tool: str = "securexai-pattern-detector"
     source_tools: list[str] = []
 
@@ -59,6 +59,30 @@ class RemediationResponse(BaseModel):
     patch: str | None = None
     validation_steps: list[str]
     auto_apply: bool
+
+
+class RepairRequest(BaseModel):
+    filename: str = Field(default="Contract.sol", min_length=1)
+    language: Language = "solidity"
+    source: str = Field(min_length=1, max_length=500_000)
+    findings: list[Finding] = []
+
+
+class RepairResponse(BaseModel):
+    filename: str
+    provider: str
+    status: Literal["generated", "rejected", "unavailable", "invalid"]
+    fixed_source: str | None = None
+    report: str
+    compile_status: Literal["compiled", "error", "unavailable"]
+    compile_message: str
+    validation_status: Literal["improved", "unchanged", "regressed", "inconclusive"]
+    original_finding_count: int
+    revised_finding_count: int
+    original_risk_summary: dict[str, int]
+    revised_risk_summary: dict[str, int]
+    unresolved_findings: list[Finding] = []
+    validation_steps: list[str]
 
 
 class VulnerabilityReport(BaseModel):

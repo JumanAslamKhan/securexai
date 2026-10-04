@@ -106,6 +106,123 @@ main {
   white-space: nowrap;
 }
 
+.workflow-panel {
+  margin: 30px 0 0;
+  padding: 22px 24px 24px;
+  border: 1px solid var(--border);
+  background: #fbfcf9;
+}
+
+.workflow-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.workflow-heading h2 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.workflow-status,
+.workflow-branch-label {
+  color: var(--accent);
+  font: 700 11px var(--mono);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.workflow-status {
+  padding-top: 7px;
+  white-space: nowrap;
+}
+
+.workflow-tree {
+  display: grid;
+  justify-items: center;
+  padding-top: 20px;
+}
+
+.workflow-node {
+  width: min(100%, 300px);
+  box-sizing: border-box;
+  padding: 11px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-h);
+  background: var(--panel);
+  text-align: center;
+  font-size: 14px;
+}
+
+.workflow-node + .workflow-node {
+  margin-top: 8px;
+}
+
+.workflow-node-primary {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  font-weight: 700;
+}
+
+.workflow-connector {
+  width: 1px;
+  height: 18px;
+  background: var(--accent-border);
+}
+
+.workflow-branches {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+  width: min(100%, 680px);
+}
+
+.workflow-branches::before {
+  content: '';
+  position: absolute;
+  top: -9px;
+  left: 25%;
+  right: 25%;
+  border-top: 1px solid var(--accent-border);
+}
+
+.workflow-branch {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding-top: 10px;
+}
+
+.workflow-outcomes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  width: min(100%, 680px);
+  margin-top: 16px;
+}
+
+.workflow-outcomes div {
+  display: grid;
+  gap: 3px;
+  padding: 12px;
+  border-top: 2px solid var(--accent);
+  background: var(--panel);
+}
+
+.workflow-outcomes strong {
+  color: var(--text-h);
+  font-size: 14px;
+}
+
+.workflow-outcomes span {
+  font-size: 12px;
+}
+
 .live-dot {
   width: 8px;
   height: 8px;
@@ -251,6 +368,71 @@ button {
   padding: 14px;
   border-left: 3px solid var(--accent);
   background: var(--accent-bg);
+}
+
+.repair-panel {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0;
+  padding: 18px;
+  border: 1px solid var(--accent-border);
+  background: #f4f8f3;
+}
+
+.repair-panel p {
+  margin: 4px 0;
+}
+
+.repair-panel .report-button {
+  justify-self: start;
+  margin: 0;
+}
+
+.repair-result {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.repair-result pre {
+  max-height: 220px;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  white-space: pre-wrap;
+  color: var(--text-h);
+  background: var(--panel);
+  font: 13px/1.5 var(--mono);
+}
+
+.repair-generated {
+  border-left: 3px solid #3c8a72;
+  padding-left: 12px;
+}
+
+.compile-status {
+  padding: 8px 10px;
+  background: var(--panel);
+  font: 13px var(--mono);
+}
+
+.compile-compiled {
+  color: #24704f;
+}
+
+.compile-error {
+  color: #a0473d;
+}
+
+.compile-unavailable {
+  color: #93611d;
+}
+
+.repair-unavailable,
+.repair-invalid {
+  border-left: 3px solid #b56f1d;
+  padding-left: 12px;
 }
 
 .remediation-panel .eyebrow {

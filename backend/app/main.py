@@ -1,17 +1,22 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from starlette.responses import JSONResponse
 
 from app.models import (
     AnalysisResponse,
     Finding,
     Language,
     RemediationResponse,
+    RepairRequest,
+    RepairResponse,
     ValidationResponse,
     VulnerabilityReport,
 )
 from app.pipelines import analyze_other_language, analyze_solidity
-from app.remediation import build_remediation
+from app.remediation import build_remediation, build_repair
 from app.reporting import generate_report
 from app.rate_limit import RateLimitMiddleware
 
@@ -19,9 +24,33 @@ app = FastAPI(
     title="SecureXAI API",
     version="0.1.0",
     description="Multi-tool smart contract vulnerability analysis API.",
+    docs_url=None if os.getenv("SECUREXAI_API_KEY") else "/docs",
+    redoc_url=None if os.getenv("SECUREXAI_API_KEY") else "/redoc",
+    openapi_url=None if os.getenv("SECUREXAI_API_KEY") else "/openapi.json",
 )
 
+
+class ApiSecurityMiddleware:
+    def __init__(self, app) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        if scope["type"] != "http" or not scope["path"].startswith("/api/v1/"):
+            await self.app(scope, receive, send)
+            return
+        expected = os.getenv("SECUREXAI_API_KEY")
+        if expected:
+            headers = dict(scope.get("headers", []))
+            supplied = headers.get(b"x-api-key", b"").decode()
+            authorization = headers.get(b"authorization", b"").decode()
+            if supplied != expected and authorization != f"Bearer {expected}":
+                response = JSONResponse({"detail": "API key required."}, status_code=401)
+                await response(scope, receive, send)
+                return
+        await self.app(scope, receive, send)
+
 app.add_middleware(RateLimitMiddleware)
+app.add_middleware(ApiSecurityMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -34,13 +63,13 @@ app.add_middleware(
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "Authorization", "X-API-Key"],
 )
 
 
 class AnalyzeRequest(BaseModel):
     filename: str = Field(default="Contract.sol", min_length=1)
-    source: str = Field(min_length=1)
+    source: str = Field(min_length=1, max_length=500_000)
     language: Language = "solidity"
 
 
@@ -51,8 +80,8 @@ class RemediationRequest(Finding):
 class ValidationRequest(BaseModel):
     filename: str = Field(default="Contract.sol", min_length=1)
     language: Language = "solidity"
-    original_source: str = Field(min_length=1)
-    revised_source: str = Field(min_length=1)
+    original_source: str = Field(min_length=1, max_length=500_000)
+    revised_source: str = Field(min_length=1, max_length=500_000)
 
 
 @app.get("/health")
@@ -83,6 +112,11 @@ def analyze_contract(request: AnalyzeRequest) -> AnalysisResponse:
 @app.post("/api/v1/remediate", response_model=RemediationResponse)
 def remediate_finding(request: RemediationRequest) -> RemediationResponse:
     return build_remediation(request, request.source)
+
+
+@app.post("/api/v1/repair", response_model=RepairResponse)
+def repair_contract(request: RepairRequest) -> RepairResponse:
+    return build_repair(request)
 
 
 @app.post("/api/v1/validate-remediation", response_model=ValidationResponse)

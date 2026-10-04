@@ -42,6 +42,31 @@ def test_health() -> None:
     assert response.json()["status"] == "ok"
 
 
+def test_api_key_protects_versioned_routes_when_configured(monkeypatch) -> None:
+    monkeypatch.setenv("SECUREXAI_API_KEY", "test-key")
+    unauthorized = client.post(
+        "/api/v1/analyze",
+        json={"filename": "Contract.sol", "source": "contract Empty {}"},
+    )
+    authorized = client.post(
+        "/api/v1/analyze",
+        headers={"X-API-Key": "test-key"},
+        json={"filename": "Contract.sol", "source": "contract Empty {}"},
+    )
+
+    assert unauthorized.status_code == 401
+    assert authorized.status_code == 200
+
+
+def test_analysis_rejects_oversized_source() -> None:
+    response = client.post(
+        "/api/v1/analyze",
+        json={"filename": "Contract.sol", "source": "x" * 500_001},
+    )
+
+    assert response.status_code == 422
+
+
 def test_analyze_allows_frontend_preflight() -> None:
     response = client.options(
         "/api/v1/analyze",
@@ -160,7 +185,14 @@ contract Payments {
     slither_findings = [finding for finding in payload["findings"] if "slither" in finding["source_tools"]]
     assert slither_findings
     assert any(finding["line"] == 6 for finding in slither_findings)
-    assert {tool["tool"] for tool in payload["tool_runs"]} == {"semgrep", "slither"}
+    assert {tool["tool"] for tool in payload["tool_runs"]} == {
+        "semgrep",
+        "slither",
+        "securexai-ml",
+    }
+    assert next(
+        tool for tool in payload["tool_runs"] if tool["tool"] == "securexai-ml"
+    )["status"] == "completed"
 
 
 def test_rust_analysis_routes_unsupported_tools_honestly() -> None:
@@ -200,9 +232,51 @@ def test_remediation_returns_validated_guidance_without_auto_apply() -> None:
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["provider"] == "securexai-rule-guidance"
+    assert payload["provider"] == "gemini-warning"
     assert payload["auto_apply"] is False
     assert payload["validation_steps"]
+
+
+def test_repair_reports_ai_unavailable_without_changing_source(monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_BASE_URL", "http://127.0.0.1:9/v1")
+    response = client.post(
+        "/api/v1/repair",
+        json={"filename": "Contract.sol", "source": "pragma solidity ^0.8.20;"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "unavailable"
+    assert payload["fixed_source"] is None
+    assert payload["provider"] == "gemini-warning"
+    assert "No source was changed" in payload["report"]
+    assert "Warning: Gemini repair generation is unavailable" in payload["report"]
+    assert payload["compile_status"] == "unavailable"
+
+
+def test_repair_rejects_incomplete_generated_source(monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_BASE_URL", "http://127.0.0.1:9/v1")
+    from app.remediation import _parse_repair_response
+
+    try:
+        _parse_repair_response(
+            '{"fixed_source":"contract Broken { function f() external {","report":"incomplete"}'
+        )
+    except ValueError as error:
+        assert "unbalanced" in str(error)
+    else:
+        raise AssertionError("Incomplete Solidity must be rejected")
+
+
+def test_solidity_compiler_rejects_invalid_generated_source() -> None:
+    from app.remediation import _compile_solidity
+
+    status, message = _compile_solidity(
+        "pragma solidity ^0.8.20; contract Broken { function f() external {"
+    )
+
+    assert status == "error"
+    assert message
 
 
 def test_report_returns_audit_summary() -> None:
@@ -220,11 +294,7 @@ def test_report_returns_audit_summary() -> None:
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["provider"] in {
-        "local-ollama:llama3:latest",
-        "local-ollama:qwen2.5-coder:7b",
-        "securexai-local-report",
-    }
+    assert payload["provider"] in {"gemini-warning", "gemini:gemini-2.5-flash"}
     assert payload["recommended_actions"]
 
 
@@ -243,4 +313,18 @@ def test_report_falls_back_when_llm_returns_invalid_shape(monkeypatch) -> None:
     )
 
     assert response.status_code == 200
-    assert response.json()["provider"] == "securexai-local-report"
+    assert response.json()["provider"] == "gemini-warning"
+
+
+def test_provider_payload_uses_native_gemini_json_format_for_google_endpoints() -> None:
+    from app.reporting import _build_chat_request_body
+
+    body = _build_chat_request_body(
+        "https://generativelanguage.googleapis.com/v1beta",
+        "gemini-2.5-flash",
+        [{"role": "user", "content": "hello"}],
+    )
+
+    assert body["generationConfig"]["responseMimeType"] == "application/json"
+    assert body["contents"][0]["parts"][0]["text"].startswith("User:")
+    assert "response_format" not in body
