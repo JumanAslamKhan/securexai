@@ -200,6 +200,17 @@ def test_autofix_upgrades_retired_gemini_model(monkeypatch) -> None:
     assert _configured_model() == "gemini-3.8-flash"
 
 
+def test_gemini_response_parser_reports_empty_candidates() -> None:
+    from app.codegen import PatchGenerationError, _extract_text
+
+    try:
+        _extract_text({"candidates": [{"finishReason": "SAFETY"}]})
+    except PatchGenerationError as error:
+        assert "finish reason: SAFETY" in str(error)
+    else:
+        raise AssertionError("An empty Gemini candidate must produce a diagnostic error")
+
+
 def test_final_report_is_available_without_gemini() -> None:
     response = client.post(
         "/api/v1/report",

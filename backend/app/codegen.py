@@ -38,13 +38,37 @@ def _gemini_endpoint(model: str, api_key: str) -> str:
 
 
 def _extract_text(payload: dict) -> str:
-    try:
-        parts = payload["candidates"][0]["content"]["parts"]
-        text = "".join(part["text"] for part in parts if isinstance(part, dict))
-    except (KeyError, IndexError, TypeError):
-        raise PatchGenerationError("Unexpected Gemini response shape.")
+    if isinstance(payload.get("error"), dict):
+        error = payload["error"]
+        raise PatchGenerationError(
+            f"Gemini returned {error.get('status', 'an error')}: "
+            f"{error.get('message', 'unknown provider error')}"
+        )
+
+    candidates = payload.get("candidates")
+    if not isinstance(candidates, list) or not candidates:
+        feedback = payload.get("promptFeedback")
+        detail = f" Prompt feedback: {feedback}." if feedback else ""
+        raise PatchGenerationError(f"Gemini returned no candidates.{detail}")
+
+    candidate = candidates[0]
+    if not isinstance(candidate, dict):
+        raise PatchGenerationError("Gemini returned an invalid candidate.")
+    content = candidate.get("content")
+    parts = content.get("parts") if isinstance(content, dict) else None
+    text_parts = [
+        part.get("text")
+        for part in parts or []
+        if isinstance(part, dict) and isinstance(part.get("text"), str)
+    ]
+    text = "".join(text_parts)
     if not text.strip():
-        raise PatchGenerationError("Gemini returned an empty patch.")
+        finish_reason = candidate.get("finishReason", "unknown")
+        safety_ratings = candidate.get("safetyRatings")
+        raise PatchGenerationError(
+            f"Gemini returned no text (finish reason: {finish_reason}; "
+            f"safety ratings: {safety_ratings or 'none'})."
+        )
     return text
 
 
