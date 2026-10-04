@@ -12,7 +12,7 @@ from urllib.parse import quote
 from app.models import AutoFixResponse, Finding, Language, ToolRun
 from app.pipelines import analyze_other_language, analyze_solidity
 
-DEFAULT_MAX_ITERATIONS = 2
+DEFAULT_MAX_ITERATIONS = 5
 DEFAULT_MODEL = "gemini-3.8-flash"
 DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 RETIRED_MODELS = {"gemini-2.5-flash"}
@@ -128,10 +128,17 @@ def _build_prompt(
 ) -> list[dict]:
     findings_payload = [finding.model_dump() for finding in findings]
     system = (
-        "You are an expert smart-contract security engineer. Rewrite the entire source "
-        "file to address the listed analyzer findings. Preserve public interfaces and "
-        "business logic where possible. Return only the complete corrected source code, "
-        "with no markdown fences or explanation."
+        "You are the remediation engine in a security pipeline. Rewrite the entire source "
+        "file and address EVERY listed finding, including findings from securexai-ml, "
+        "Semgrep, Slither, and the pattern detector. Treat each finding as a checklist: "
+        "reentrancy requires checks-effects-interactions plus a guard where appropriate; "
+        "tx.origin requires msg.sender and explicit access control; low-level calls require "
+        "checked results; compiler-version findings require a safe supported pragma; ML "
+        "signals must be reconciled against the source instead of ignored. Preserve public "
+        "interfaces and business logic where possible. Do not remove functionality merely "
+        "to hide a finding. Return ONLY the complete corrected source code, with no markdown "
+        "fences or explanation. The source will be re-analyzed after this pass, so make a "
+        "concrete fix for every checklist item."
     )
     user = json.dumps(
         {"filename": filename, "language": language, "source": source, "findings": findings_payload}
@@ -219,7 +226,12 @@ def run_autofix(
         message = f"All {original_count} finding(s) resolved after {iterations_used} generation pass(es)."
     elif remaining_count < original_count:
         status = "partially-patched"
-        message = f"Reduced findings from {original_count} to {remaining_count}; manual review is required."
+        reduction = original_count - remaining_count
+        percentage = round((reduction / original_count) * 100) if original_count else 100
+        message = (
+            f"Reduced findings from {original_count} to {remaining_count} ({percentage}% reduction) "
+            f"after {iterations_used} of {max_iterations} allowed pass(es); manual review is required."
+        )
     else:
         status = "failed"
         message = f"Findings did not decrease after {iterations_used} pass(es); manual review is required."

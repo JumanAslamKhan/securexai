@@ -220,7 +220,7 @@ function App() {
       const response = await fetch("http://127.0.0.1:8000/api/v1/autofix", {
         method: "POST",
         headers: API_HEADERS,
-        body: JSON.stringify({ filename, language, source, max_iterations: 2 }),
+        body: JSON.stringify({ filename, language, source, max_iterations: 5 }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail ?? "Candidate generation failed");
