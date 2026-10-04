@@ -234,11 +234,12 @@ def test_detailed_final_report_accepts_source_comparison(monkeypatch) -> None:
             },
             "original_source": "contract Vulnerable {}",
             "revised_source": "contract Repaired {}",
+            "regeneration_status": "partially-patched",
         },
     )
 
     assert response.status_code == 200
-    assert "Regeneration comparison" in response.json()["detailed_report"]
+    assert "Manual review required" in response.json()["detailed_report"]
 
 
 def test_analyze_returns_line_level_reentrancy_finding() -> None:

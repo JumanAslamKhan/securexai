@@ -90,6 +90,8 @@ class FinalReportRequest(BaseModel):
     analysis: AnalysisResponse
     original_source: str = Field(default="", max_length=500_000)
     revised_source: str = Field(default="", max_length=500_000)
+    revised_findings: list[Finding] = []
+    regeneration_status: str = "not-run"
 
 
 @app.get("/health")
@@ -139,6 +141,8 @@ def detailed_final_report(request: FinalReportRequest) -> FinalReport:
         request.analysis,
         original_source=request.original_source,
         revised_source=request.revised_source,
+        revised_findings=request.revised_findings,
+        regeneration_status=request.regeneration_status,
     )
 
 

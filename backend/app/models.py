@@ -76,5 +76,9 @@ class FinalReport(BaseModel):
     finding_count: int
     tool_runs: list[ToolRun]
     detailed_report: str = ""
+    findings: list[Finding] = []
+    manual_review_findings: list[Finding] = []
+    manual_review_required: bool = True
+    regeneration_status: str = "not-run"
 
 

@@ -8,7 +8,7 @@ from urllib import request as http_request
 from urllib.error import HTTPError
 from urllib.parse import quote
 
-from app.models import AnalysisResponse, FinalReport
+from app.models import AnalysisResponse, FinalReport, Finding
 
 
 def _gemini_detail(analysis: AnalysisResponse, original_source: str, revised_source: str) -> str | None:
@@ -60,6 +60,8 @@ def build_final_report(
     analysis: AnalysisResponse,
     original_source: str = "",
     revised_source: str = "",
+    revised_findings: list[Finding] | None = None,
+    regeneration_status: str = "not-run",
 ) -> FinalReport:
     risk_summary = {
         severity: sum(finding.severity == severity for finding in analysis.findings)
@@ -89,13 +91,13 @@ def build_final_report(
     else:
         executive_summary = f"No normalized findings were reported for {analysis.filename}."
 
+    manual_review_findings = revised_findings if revised_findings is not None else analysis.findings
     detailed_report = _gemini_detail(analysis, original_source, revised_source)
     if not detailed_report:
         detailed_report = (
             f"## Examined vulnerabilities\n\n{executive_summary}\n\n"
-            "## Regeneration comparison\n\n"
-            "The regenerated source was not available for Gemini review. "
-            "Use the analyzer findings and manual rescan before accepting changes."
+            f"## Manual review required\n\n{len(manual_review_findings)} finding(s) remain after regeneration. "
+            "Review every listed finding and analyzer evidence before accepting changes."
         )
     return FinalReport(
         filename=analysis.filename,
@@ -108,4 +110,8 @@ def build_final_report(
         finding_count=analysis.finding_count,
         tool_runs=analysis.tool_runs,
         detailed_report=detailed_report,
+        findings=analysis.findings,
+        manual_review_findings=manual_review_findings,
+        manual_review_required=bool(manual_review_findings) or regeneration_status != "fully-patched",
+        regeneration_status=regeneration_status,
     )

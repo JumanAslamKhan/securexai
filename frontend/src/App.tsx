@@ -46,6 +46,7 @@ type AutoFixResult = {
   iterations: number;
   patched_source: string;
   diff: string;
+  remaining_findings: Finding[];
   message: string;
 };
 
@@ -59,6 +60,10 @@ type FinalReport = {
   validation_note: string;
   finding_count: number;
   detailed_report: string;
+  findings: Finding[];
+  manual_review_findings: Finding[];
+  manual_review_required: boolean;
+  regeneration_status: string;
 };
 
 type SeverityFilter = "all" | Finding["severity"];
@@ -168,6 +173,8 @@ function App() {
           analysis: result,
           original_source: analyzedSource || source,
           revised_source: autoFix?.patched_source || source,
+          revised_findings: autoFix?.remaining_findings || result.findings,
+          regeneration_status: autoFix?.status || "not-run",
         }),
       });
       const data = await response.json();
@@ -271,6 +278,8 @@ function App() {
       <h1>${escapeHtml(finalReport.title)}</h1><p class="meta">Provider: ${escapeHtml(finalReport.provider)} | Findings: ${finalReport.finding_count}</p>
       <h2>Executive summary</h2><p>${escapeHtml(finalReport.executive_summary)}</p><h2>Risk visual</h2>${riskBars}<h2>Detailed Gemini assessment</h2><pre>${escapeHtml(finalReport.detailed_report)}</pre>
       <h2>Vulnerable versus regenerated source</h2><div class="comparison"><div><h3>Vulnerable source</h3><pre>${escapeHtml(analyzedSource || source)}</pre></div><div><h3>Regenerated source</h3><pre>${escapeHtml(autoFix?.patched_source || source)}</pre></div></div>
+      <h2>Examined findings</h2><ul>${finalReport.findings.map((finding) => `<li><b>${escapeHtml(finding.severity)}</b> - ${escapeHtml(finding.title)} - line ${finding.line} - ${escapeHtml(finding.source_tools.join(", "))}</li>`).join("")}</ul>
+      <h2>Manual review</h2><p>${finalReport.manual_review_required ? `${finalReport.manual_review_findings.length} finding(s) remain after regeneration and require manual review.` : "No unresolved findings were reported by the final rescan."}</p>
       <h2>Recommended actions</h2><ul>${finalReport.recommended_actions.map((action) => `<li>${escapeHtml(action)}</li>`).join("")}</ul><p>${escapeHtml(finalReport.validation_note)}</p></body></html>`;
     if (format === "pdf") {
       const printWindow = window.open("", "_blank");
@@ -494,18 +503,31 @@ function App() {
               <strong>Turn evidence into a decision record</strong>
               <p>The final report is generated locally from normalized findings and analyzer status.</p>
             </div>
-            <button type="button" className="ghost-button" onClick={generateFinalReport} disabled={reportLoading}>
-              {reportLoading ? "Building final report..." : "Build final report"}
+            <button type="button" className="ghost-button" onClick={generateFinalReport} disabled={reportLoading || !autoFix}>
+              {reportLoading ? "Building final report..." : autoFix ? "Build final report" : "Regenerate code first"}
             </button>
             {finalReport && (
               <div className="final-report-result">
                 <p className="eyebrow">{finalReport.provider}</p>
                 <h3>{finalReport.title}</h3>
                 <p>{finalReport.executive_summary}</p>
+                <p><strong>Regeneration:</strong> {finalReport.regeneration_status}</p>
                 <div className="risk-summary">
                   {Object.entries(finalReport.risk_summary).map(([severity, count]) => (
                     <span key={severity}>{severity}: <b>{count}</b></span>
                   ))}
+                </div>
+                {finalReport.manual_review_required && (
+                  <div className="manual-review-banner">
+                    <strong>Manual review required</strong>
+                    <span>{finalReport.manual_review_findings.length} finding(s) remain after regeneration.</span>
+                  </div>
+                )}
+                <div className="report-findings">
+                  <strong>All examined findings</strong>
+                  <ul>{finalReport.findings.map((finding) => <li key={`${finding.rule_id}-${finding.line}`}>
+                    <b>{finding.severity}</b> · {finding.title} · line {finding.line} · {finding.source_tools.join(", ")}
+                  </li>)}</ul>
                 </div>
                 <ul>{finalReport.recommended_actions.map((action) => <li key={action}>{action}</li>)}</ul>
                 <small>{finalReport.validation_note}</small>

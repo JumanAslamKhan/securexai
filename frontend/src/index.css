@@ -704,6 +704,22 @@ button:disabled {
   color: var(--text-h);
 }
 
+.manual-review-banner {
+  display: grid;
+  gap: 3px;
+  padding: 12px;
+  border-left: 3px solid #b56f1d;
+  background: #fff4df;
+}
+
+.manual-review-banner strong {
+  color: #8a5412;
+}
+
+.report-findings ul {
+  margin: 6px 0 0;
+}
+
 .result-count {
   margin: 0 0 12px;
   color: var(--text);
