@@ -48,6 +48,9 @@ type AutoFixResult = {
   diff: string;
   remaining_findings: Finding[];
   message: string;
+  compile_status: "compiled" | "error" | "unavailable" | "not-applicable";
+  compile_message: string;
+  accepted_iterations: number;
 };
 
 type FinalReport = {
@@ -492,6 +495,8 @@ function App() {
                 <p><strong>{autoFix.provider}</strong> · {autoFix.status}</p>
                 <p>{autoFix.message}</p>
                 <p>{autoFix.original_finding_count} findings before · {autoFix.remaining_finding_count} after · {autoFix.iterations} iteration(s)</p>
+                <p>Candidate gate: <strong>{autoFix.compile_status}</strong> · {autoFix.accepted_iterations} accepted pass(es)</p>
+                <small>{autoFix.compile_message}</small>
                 <pre>{autoFix.diff || "No source changes were generated."}</pre>
               </div>
             )}

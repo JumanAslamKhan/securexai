@@ -64,7 +64,9 @@ returns `improved`, `unchanged`, `regressed`, or `inconclusive`.
 The optional `POST /api/v1/autofix` endpoint sends the current source and
 combined analyzer findings to Gemini. It retries generation and re-analysis up
 to five times, then returns a candidate source, remaining findings, tool
-statuses, and a unified diff. It never changes the submitted source or applies
+statuses, compilation status, and a unified diff. Each candidate must pass the
+Solidity compile gate when available and cannot replace the best candidate if
+its rescan increases findings. It never changes the submitted source or applies
 the candidate automatically.
 
 Configure Gemini before starting the backend:

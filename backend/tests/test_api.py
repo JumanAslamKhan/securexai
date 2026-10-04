@@ -191,6 +191,7 @@ def test_autofix_reanalyzes_gemini_candidate(monkeypatch) -> None:
     assert payload["original_finding_count"] == 1
     assert payload["remaining_finding_count"] == 0
     assert "-contract Vault" in payload["diff"]
+    assert payload["accepted_iterations"] == 1
 
 
 def test_autofix_upgrades_retired_gemini_model(monkeypatch) -> None:

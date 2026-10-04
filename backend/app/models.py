@@ -63,6 +63,9 @@ class AutoFixResponse(BaseModel):
     remaining_findings: list[Finding]
     tool_runs: list[ToolRun]
     message: str
+    compile_status: Literal["compiled", "error", "unavailable", "not-applicable"] = "not-applicable"
+    compile_message: str = ""
+    accepted_iterations: int = 0
 
 
 class FinalReport(BaseModel):

@@ -82,7 +82,7 @@ class AutoFixRequest(BaseModel):
     filename: str = Field(default="Contract.sol", min_length=1)
     source: str = Field(min_length=1, max_length=500_000)
     language: Language = "solidity"
-    max_iterations: int = Field(default=2, ge=1, le=5)
+    max_iterations: int = Field(default=5, ge=1, le=5)
     model: str | None = None
 
 

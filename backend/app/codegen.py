@@ -5,6 +5,10 @@ from __future__ import annotations
 import difflib
 import json
 import os
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path
 from urllib import request as http_request
 from urllib.error import HTTPError
 from urllib.parse import quote
@@ -20,6 +24,33 @@ RETIRED_MODELS = {"gemini-2.5-flash"}
 
 class PatchGenerationError(Exception):
     """Raised when Gemini fails or returns unusable source."""
+
+
+def _compile_candidate(source: str, language: Language) -> tuple[str, str]:
+    if language != "solidity":
+        return "not-applicable", "Compilation gate is configured for Solidity only."
+    executable = shutil.which("solc")
+    if not executable:
+        local_executable = Path(__file__).resolve().parents[2] / ".tools-venv" / "Scripts" / "solc.exe"
+        executable = str(local_executable) if local_executable.exists() else None
+    if not executable:
+        return "unavailable", "Solidity compiler was not found; analyzer rescan remains required."
+    with tempfile.TemporaryDirectory(prefix="securexai-autofix-") as directory:
+        contract = Path(directory) / "Candidate.sol"
+        contract.write_text(source, encoding="utf-8")
+        try:
+            result = subprocess.run(
+                [executable, "--bin", str(contract)],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as error:
+            return "unavailable", str(error)
+    if result.returncode:
+        return "error", (result.stderr or result.stdout).strip()[:2_000]
+    return "compiled", "Solidity compiler accepted the candidate."
 
 
 def _configured_model(model: str | None = None) -> str:
@@ -191,7 +222,13 @@ def run_autofix(
     original_findings, tool_runs, _ = analyze_fn(source)
     current_source = source
     current_findings = original_findings
+    best_source = source
+    best_findings = original_findings
+    best_tools = tool_runs
     iterations_used = 0
+    accepted_iterations = 0
+    compile_status = "not-applicable"
+    compile_message = ""
     model_name = _configured_model(model)
 
     for _ in range(max_iterations):
@@ -215,12 +252,33 @@ def run_autofix(
                 remaining_findings=current_findings,
                 tool_runs=tool_runs,
                 message=str(error),
+                compile_status=compile_status,
+                compile_message=compile_message,
+                accepted_iterations=accepted_iterations,
             )
-        current_source = candidate
-        current_findings, tool_runs, _ = analyze_fn(current_source)
+        candidate_compile_status, candidate_compile_message = _compile_candidate(candidate, language)
+        compile_status = candidate_compile_status
+        compile_message = candidate_compile_message
+        if candidate_compile_status == "error":
+            current_source = best_source
+            current_findings = best_findings
+            tool_runs = best_tools
+            continue
+        candidate_findings, candidate_tools, _ = analyze_fn(candidate)
+        if len(candidate_findings) <= len(best_findings):
+            best_source = candidate
+            best_findings = candidate_findings
+            best_tools = candidate_tools
+            accepted_iterations += 1
+        current_source = best_source
+        current_findings = best_findings
+        tool_runs = best_tools
 
     original_count = len(original_findings)
-    remaining_count = len(current_findings)
+    current_source = best_source
+    current_findings = best_findings
+    tool_runs = best_tools
+    remaining_count = len(best_findings)
     if remaining_count == 0:
         status = "fully-patched"
         message = f"All {original_count} finding(s) resolved after {iterations_used} generation pass(es)."
@@ -248,4 +306,7 @@ def run_autofix(
         remaining_findings=current_findings,
         tool_runs=tool_runs,
         message=message,
+        compile_status=compile_status,
+        compile_message=compile_message,
+        accepted_iterations=accepted_iterations,
     )
