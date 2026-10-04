@@ -65,3 +65,15 @@ class AutoFixResponse(BaseModel):
     message: str
 
 
+class FinalReport(BaseModel):
+    filename: str
+    provider: str
+    title: str
+    executive_summary: str
+    risk_summary: dict[str, int]
+    recommended_actions: list[str]
+    validation_note: str
+    finding_count: int
+    tool_runs: list[ToolRun]
+
+

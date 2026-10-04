@@ -75,6 +75,13 @@ $env:GEMINI_MODEL = "gemini-3.8-flash"
 $env:GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 ```
 
+## Layer 4 Final Report
+
+`POST /api/v1/report` converts an `AnalysisResponse` into a deterministic final
+report containing the risk summary, deduplicated recommendations, analyzer
+completeness, and a deployment-review note. It does not call Gemini, so report
+generation remains available when the AI provider is unavailable.
+
 ## Rate Limiting
 
 Versioned API routes are limited to 60 requests per 60 seconds per client IP by

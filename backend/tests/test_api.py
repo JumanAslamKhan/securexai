@@ -200,6 +200,25 @@ def test_autofix_upgrades_retired_gemini_model(monkeypatch) -> None:
     assert _configured_model() == "gemini-3.8-flash"
 
 
+def test_final_report_is_available_without_gemini() -> None:
+    response = client.post(
+        "/api/v1/report",
+        json={
+            "filename": "Clean.sol",
+            "language": "solidity",
+            "pipeline": "solidity-security",
+            "finding_count": 0,
+            "findings": [],
+            "tool_runs": [],
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["provider"] == "securexai-final-report"
+    assert payload["finding_count"] == 0
+
+
 def test_analyze_returns_line_level_reentrancy_finding() -> None:
     source = """contract Vault {\n    function withdraw() external {\n        (bool ok,) = msg.sender.call{value: 1 ether}(\"\");\n        require(ok);\n    }\n}\n"""
 

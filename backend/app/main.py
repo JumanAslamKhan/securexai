@@ -9,12 +9,14 @@ from app.models import (
     AnalysisResponse,
     AutoFixResponse,
     Finding,
+    FinalReport,
     Language,
     ValidationResponse,
 )
 from app.codegen import run_autofix
 from app.pipelines import analyze_other_language, analyze_solidity
 from app.rate_limit import RateLimitMiddleware
+from app.reporting import build_final_report
 
 app = FastAPI(
     title="SecureXAI API",
@@ -118,6 +120,11 @@ def autofix_contract(request: AutoFixRequest) -> AutoFixResponse:
         max_iterations=request.max_iterations,
         model=request.model,
     )
+
+
+@app.post("/api/v1/report", response_model=FinalReport)
+def final_report(request: AnalysisResponse) -> FinalReport:
+    return build_final_report(request)
 
 
 @app.post("/api/v1/validate-remediation", response_model=ValidationResponse)

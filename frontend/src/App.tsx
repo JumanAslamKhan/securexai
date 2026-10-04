@@ -49,6 +49,17 @@ type AutoFixResult = {
   message: string;
 };
 
+type FinalReport = {
+  filename: string;
+  provider: string;
+  title: string;
+  executive_summary: string;
+  risk_summary: Record<string, number>;
+  recommended_actions: string[];
+  validation_note: string;
+  finding_count: number;
+};
+
 type SeverityFilter = "all" | Finding["severity"];
 type Language = "solidity" | "vyper" | "rust" | "move";
 
@@ -90,6 +101,8 @@ function App() {
   const [validationLoading, setValidationLoading] = useState(false);
   const [autoFix, setAutoFix] = useState<AutoFixResult | null>(null);
   const [autoFixLoading, setAutoFixLoading] = useState(false);
+  const [finalReport, setFinalReport] = useState<FinalReport | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
 
   async function loadContractFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -131,12 +144,34 @@ function App() {
       setResult(data);
       setAnalyzedSource(source);
       setValidation(null);
+      setAutoFix(null);
+      setFinalReport(null);
     } catch (error) {
       setError(
         error instanceof Error ? error.message : "Unknown analysis error",
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function generateFinalReport() {
+    if (!result) return;
+    setReportLoading(true);
+    setError("");
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/v1/report", {
+        method: "POST",
+        headers: API_HEADERS,
+        body: JSON.stringify(result),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail ?? "Final report failed");
+      setFinalReport(data);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Final report failed");
+    } finally {
+      setReportLoading(false);
     }
   }
 
@@ -246,28 +281,25 @@ function App() {
           </div>
           <span className="workflow-status">4 API paths</span>
         </div>
-        <div className="workflow-tree">
-          <div className="workflow-node workflow-node-primary">1. Load or edit source</div>
-          <div className="workflow-connector" aria-hidden="true" />
-          <div className="workflow-node workflow-node-primary">2. Analyze contract</div>
-          <div className="workflow-connector" aria-hidden="true" />
-          <div className="workflow-branches">
-            <div className="workflow-branch">
-              <span className="workflow-branch-label">Solidity</span>
-              <div className="workflow-node">Pattern detector + external analyzers</div>
-              <div className="workflow-node">Merge and deduplicate findings</div>
-            </div>
-            <div className="workflow-branch">
-              <span className="workflow-branch-label">Other supported languages</span>
-              <div className="workflow-node">Language-specific pipeline placeholder</div>
-            </div>
+        <div className="workflow-tree architecture-tree">
+          <div className="architecture-layer">
+            <span className="layer-number">01</span>
+            <div><strong>Detect</strong><span>Pattern rules, Semgrep, Slither</span></div>
           </div>
           <div className="workflow-connector" aria-hidden="true" />
-          <div className="workflow-node workflow-node-primary">3. Review findings and tool status</div>
-          <div className="workflow-outcomes">
-            <div><strong>Remediate</strong><span>Guidance or patch</span></div>
-            <div><strong>Report</strong><span>JSON or HTML export</span></div>
-            <div><strong>Validate</strong><span>Improved, unchanged, regressed, or inconclusive</span></div>
+          <div className="architecture-layer">
+            <span className="layer-number">02</span>
+            <div><strong>Classify</strong><span>SecureXAI ML normalization and deduplication</span></div>
+          </div>
+          <div className="workflow-connector" aria-hidden="true" />
+          <div className="architecture-layer architecture-layer-ai">
+            <span className="layer-number">03</span>
+            <div><strong>Generate candidate</strong><span>Gemini repair, analyzer rescan, reviewable diff</span></div>
+          </div>
+          <div className="workflow-connector" aria-hidden="true" />
+          <div className="architecture-layer">
+            <span className="layer-number">04</span>
+            <div><strong>Report decision</strong><span>Deterministic risk summary and recommended actions</span></div>
           </div>
         </div>
       </section>
@@ -416,6 +448,31 @@ function App() {
                 <p>{autoFix.message}</p>
                 <p>{autoFix.original_finding_count} findings before · {autoFix.remaining_finding_count} after · {autoFix.iterations} iteration(s)</p>
                 <pre>{autoFix.diff || "No source changes were generated."}</pre>
+              </div>
+            )}
+          </div>
+
+          <div className="report-panel">
+            <div>
+              <p className="eyebrow">Layer 4 / final report</p>
+              <strong>Turn evidence into a decision record</strong>
+              <p>The final report is generated locally from normalized findings and analyzer status.</p>
+            </div>
+            <button type="button" className="ghost-button" onClick={generateFinalReport} disabled={reportLoading}>
+              {reportLoading ? "Building final report..." : "Build final report"}
+            </button>
+            {finalReport && (
+              <div className="final-report-result">
+                <p className="eyebrow">{finalReport.provider}</p>
+                <h3>{finalReport.title}</h3>
+                <p>{finalReport.executive_summary}</p>
+                <div className="risk-summary">
+                  {Object.entries(finalReport.risk_summary).map(([severity, count]) => (
+                    <span key={severity}>{severity}: <b>{count}</b></span>
+                  ))}
+                </div>
+                <ul>{finalReport.recommended_actions.map((action) => <li key={action}>{action}</li>)}</ul>
+                <small>{finalReport.validation_note}</small>
               </div>
             )}
           </div>
